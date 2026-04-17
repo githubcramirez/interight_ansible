@@ -1,10 +1,10 @@
 [Intersight_Servers]
-SJC07-R14-FI-1-1-7
-SJC07-R14-FI-1-1-8
+CX-DCC-DL2-S9108-AI-1-1-5
+
 
 # Examples can use Intersight or Intersight_Servers host group
 [Intersight:children]
-Intersight_Servers
+#Intersight_Servers
 
 # For examples that use localhost, all:vars allows key or other var lookup
 [all:vars]
