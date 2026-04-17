@@ -1,0 +1,69 @@
+---
+#
+# Configure Server Profiles
+#
+# The hosts group used is provided by the group variable or defaulted to 'Intersight_Servers'.
+# You can specify a specific host (or host group) on the command line:
+#   ansible-playbook ... -e group=<your host group>
+#   e.g., ansible-playbook server_profiles.yml -e group=TME_Demo
+#
+- hosts: "{{ group | default('Intersight_Servers') }}"
+  connection: local
+  collections:
+    - cisco.intersight
+  gather_facts: false
+  vars:
+    # Create an anchor for api_info that can be used throughout the file
+    api_info: &api_info
+      # Key can be directly specified, and vault should be used to encrypt:
+      # Ex. ansible-vault encrypt_string --vault-id tme@/Users/dsoper/Documents/vault_password_file '-----BEGIN EC PRIVATE KEY-----
+      #     <your private key data>
+      #     -----END EC PRIVATE KEY-----'
+      # To use with vault:
+      #     ansible-playbook -i inventory --vault-id tme@vault_password_file intersight_server_profile.yml
+      # If api_key vars are omitted, INTERSIGHT_API_KEY_ID, INTERSIGHT_API_PRIVATE_KEY,
+      # and INTERSIGHT_API_URI environment variables used for API key data
+      api_private_key: "{{ api_private_key | default(omit) }}"
+      api_key_id: "{{ api_key_id | default(omit) }}"
+      api_uri: "{{ api_uri | default(omit) }}"
+      validate_certs: "{{ validate_certs | default(omit) }}"
+      state: "{{ state | default(omit) }}"
+    # Server Profile name default
+    profile_name: "SP-{{ inventory_hostname }}"
+  tasks:
+    #
+    # Configure profiles specific to server (run for each server in the inventory)
+    #
+    - set_fact:
+        mode: FIAttached
+      when: mode is not defined or mode == 'Intersight'
+    # Get server moid when not defined in inventory
+    - block:
+        - name: "Get {{ inventory_hostname }} Server Moid"
+          cisco.intersight.intersight_info:
+            <<: *api_info
+            server_names: "{{ inventory_hostname }}"
+          register: server
+        - set_fact:
+            server_moid: "{{ server.intersight_servers[0].Moid }}"
+      when: server_moid is not defined
+      delegate_to: localhost
+    - name: "Configure {{ profile_name }} Server Profile"
+      intersight_server_profile:
+        <<: *api_info
+        organization: "{{ organization | default(omit) }}"
+        name: "{{ profile_name }}"
+        target_platform: "{{ mode | default(omit) }}"
+        tags:
+          - Key: Site
+            Value: SJC02
+        description: "Updated Profile for server name {{ inventory_hostname }}"
+        assigned_server: "{{ server_moid }}"
+        boot_order_policy: "{{ boot_order_policy | default(omit) }}"
+        imc_access_policy: "{{ imc_access_policy | default(omit) }}"
+        lan_connectivity_policy: "{{ lan_connectivity_policy | default(omit) }}"
+        local_user_policy: "{{ local_user_policy | default(omit) }}"
+        ntp_policy: "{{ ntp_policy | default(omit) }}"
+        virtual_media_policy: "{{ virtual_media_policy | default(omit) }}"
+      when: server_moid is defined
+      delegate_to: localhost
