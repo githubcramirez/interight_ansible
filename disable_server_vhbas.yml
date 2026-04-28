@@ -1,0 +1,162 @@
+---
+# =============================================================================
+# Playbook: disable_server_vhbas.yml
+#
+# Prompts for a server name, enumerates all vHBAs on that server, disables
+# them, waits 30 seconds, then re-enables them.  Exits cleanly if the server
+# has no vHBAs.
+#
+# Authentication – set the following environment variables before running:
+#   export INTERSIGHT_API_KEY_ID="<your-key-id>"
+#   export INTERSIGHT_API_PRIVATE_KEY="<path-to-your-pem-key-file>"
+#
+# Usage:
+#   ansible-playbook -i inventory disable_server_vhbas.yml
+# =============================================================================
+
+- name: Disable and re-enable all vHBAs on a Cisco Intersight server
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    api_key_id: "{{ lookup('env', 'INTERSIGHT_API_KEY_ID') }}"
+    api_private_key: "{{ lookup('env', 'INTERSIGHT_API_PRIVATE_KEY') }}"
+    api_uri: "https://intersight.com/api/v1"
+    validate_certs: true
+
+  vars_prompt:
+    - name: server_name
+      prompt: "Enter the Intersight server name (exact match)"
+      private: false
+
+  tasks:
+
+    # -------------------------------------------------------------------------
+    # 1. Resolve the server Moid by name
+    # -------------------------------------------------------------------------
+    - name: Look up server by name
+      cisco.intersight.intersight_rest_api:
+        api_key_id: "{{ api_key_id }}"
+        api_private_key: "{{ api_private_key }}"
+        api_uri: "{{ api_uri }}"
+        validate_certs: "{{ validate_certs }}"
+        resource_path: /compute/PhysicalSummaries
+        query_params:
+          $filter: "Name eq '{{ server_name }}'"
+        return_list: true
+      register: server_lookup
+
+    - name: Fail if server not found
+      ansible.builtin.fail:
+        msg: >-
+          Server '{{ server_name }}' was not found in Intersight.
+          Verify the name and try again.
+      when: (server_lookup.api_response | default([])) | length == 0
+
+    - name: Warn if multiple servers matched the name
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: {{ server_lookup.api_response | length }} servers matched
+          '{{ server_name }}'. Using the first result
+          (Moid: {{ server_lookup.api_response[0].Moid }}).
+      when: server_lookup.api_response | length > 1
+
+    - name: Store server Moid
+      ansible.builtin.set_fact:
+        server_moid: "{{ server_lookup.api_response[0].Moid }}"
+
+    - name: Display resolved server
+      ansible.builtin.debug:
+        msg: "Resolved server '{{ server_name }}' → Moid: {{ server_moid }}"
+
+    # -------------------------------------------------------------------------
+    # 2. Enumerate vHBAs (adapter.HostFcInterfaces) on the server
+    # -------------------------------------------------------------------------
+    - name: Enumerate vHBAs on server
+      cisco.intersight.intersight_rest_api:
+        api_key_id: "{{ api_key_id }}"
+        api_private_key: "{{ api_private_key }}"
+        api_uri: "{{ api_uri }}"
+        validate_certs: "{{ validate_certs }}"
+        resource_path: /adapter/HostFcInterfaces
+        query_params:
+          $filter: "Ancestors.Moid eq '{{ server_moid }}'"
+          $orderby: "Name asc"
+        return_list: true
+      register: vhba_lookup
+
+    # -------------------------------------------------------------------------
+    # 3. Clean exit if no vHBAs exist
+    # -------------------------------------------------------------------------
+    - name: No vHBAs found – notify and exit cleanly
+      when: (vhba_lookup.api_response | default([])) | length == 0
+      block:
+        - name: Inform user that no vHBAs exist on this server
+          ansible.builtin.debug:
+            msg: >-
+              No vHBAs (Fibre Channel host interfaces) found on server
+              '{{ server_name }}'. Nothing to do – exiting cleanly.
+        - name: End play cleanly
+          ansible.builtin.meta: end_play
+
+    - name: Display discovered vHBAs
+      ansible.builtin.debug:
+        msg: >-
+          Found {{ vhba_lookup.api_response | length }} vHBA(s) on
+          '{{ server_name }}':
+          {{ vhba_lookup.api_response | map(attribute='Name') | list | join(', ') }}
+
+    # -------------------------------------------------------------------------
+    # 4. Disable all vHBAs
+    # -------------------------------------------------------------------------
+    - name: Disable vHBAs
+      cisco.intersight.intersight_rest_api:
+        api_key_id: "{{ api_key_id }}"
+        api_private_key: "{{ api_private_key }}"
+        api_uri: "{{ api_uri }}"
+        validate_certs: "{{ validate_certs }}"
+        resource_path: "/adapter/HostFcInterfaces/{{ item.Moid }}"
+        update_method: post
+        api_body:
+          VfcAction: "Disable"
+      loop: "{{ vhba_lookup.api_response }}"
+      loop_control:
+        label: "{{ item.Name }}"
+
+    - name: Confirm all vHBAs disabled
+      ansible.builtin.debug:
+        msg: >-
+          All {{ vhba_lookup.api_response | length }} vHBA(s) on
+          '{{ server_name }}' have been disabled.
+
+    # -------------------------------------------------------------------------
+    # 5. Wait 30 seconds
+    # -------------------------------------------------------------------------
+    - name: Wait 30 seconds before re-enabling vHBAs
+      ansible.builtin.pause:
+        seconds: 30
+        prompt: "Pausing for 30 seconds before re-enabling vHBAs (press Ctrl+C then 'C' to skip)"
+
+    # -------------------------------------------------------------------------
+    # 6. Re-enable all vHBAs
+    # -------------------------------------------------------------------------
+    - name: Re-enable vHBAs
+      cisco.intersight.intersight_rest_api:
+        api_key_id: "{{ api_key_id }}"
+        api_private_key: "{{ api_private_key }}"
+        api_uri: "{{ api_uri }}"
+        validate_certs: "{{ validate_certs }}"
+        resource_path: "/adapter/HostFcInterfaces/{{ item.Moid }}"
+        update_method: post
+        api_body:
+          VfcAction: "Enable"
+      loop: "{{ vhba_lookup.api_response }}"
+      loop_control:
+        label: "{{ item.Name }}"
+
+    - name: Confirm all vHBAs re-enabled
+      ansible.builtin.debug:
+        msg: >-
+          All {{ vhba_lookup.api_response | length }} vHBA(s) on
+          '{{ server_name }}' have been successfully re-enabled.
