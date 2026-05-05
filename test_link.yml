@@ -1,31 +1,41 @@
-- name: "Prueba de Ruta API"
+- name: "Prueba de Ruta API Intersight"
   hosts: localhost
   connection: local
   gather_facts: false
+
   vars:
-    api_info:
+    # Definimos los datos de conexión como variables normales
+    intersight_creds:
       api_private_key: "{{ api_private_key }}"
       api_key_id: "{{ api_key_id }}"
       api_uri: "https://intersight.com"
+      validate_certs: true
+
   tasks:
-    - name: "Validar con /api/v1/ en el path"
+    - name: "Validar Ruta 1: Con prefijo /api/v1/"
       cisco.intersight.intersight_rest_api:
-        <<: *api_info
+        api_private_key: "{{ intersight_creds.api_private_key }}"
+        api_key_id: "{{ intersight_creds.api_key_id }}"
+        api_uri: "{{ intersight_creds.api_uri }}"
+        validate_certs: "{{ intersight_creds.validate_certs }}"
         resource_path: "/api/v1/organization/Organizations"
         method: GET
-      register: res_path_full
+      register: res_full
       ignore_errors: true
 
-    - name: "Validar sin /api/v1/ en el path"
+    - name: "Validar Ruta 2: Sin prefijo (solo recurso)"
       cisco.intersight.intersight_rest_api:
-        <<: *api_info
+        api_private_key: "{{ intersight_creds.api_private_key }}"
+        api_key_id: "{{ intersight_creds.api_key_id }}"
+        api_uri: "{{ intersight_creds.api_uri }}"
+        validate_certs: "{{ intersight_creds.validate_certs }}"
         resource_path: "organization/Organizations"
         method: GET
-      register: res_path_short
+      register: res_short
       ignore_errors: true
 
-    - name: "Diagnóstico"
+    - name: "Resultados del Diagnóstico"
       debug:
         msg: 
-          - "Resultado con path largo: {{ res_path_full.msg | default('SUCCESS') }}"
-          - "Resultado con path corto: {{ res_path_short.msg | default('SUCCESS') }}"
+          - "Ruta con /api/v1/ -> Estado: {{ res_full.api_response.LastStatus | default(res_full.msg) }}"
+          - "Ruta sin prefijo -> Estado: {{ res_short.api_response.LastStatus | default(res_short.msg) }}"
