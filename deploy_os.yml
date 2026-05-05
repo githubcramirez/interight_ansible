@@ -9,6 +9,7 @@
     server_name: "CX-DCC-DL2-S9108-AI-1-1-5"
     os_image_name: "Red Hat Enterprise Linux 9.6"
     scu_image_name: "SCU-7.1.5.250100"
+    # Actualizado al nuevo archivo
     os_config_file: "RHEL96_v2.ks"
     
     # Red
@@ -98,7 +99,19 @@
             "NetworkDevice": "{{ network_device }}",
             "IsRootPasswordCrypted": false,
             "RootPassword": "{{ vault_password }}",
-            "Source": "Template"
+            "Source": "Template",
+            "AdditionalParameters": [
+              { "Name": "IpVersion", "Value": "V4" },
+              { "Name": "IpConfigType", "Value": "static" },
+              { "Name": "IpV4ConfigGateway", "Value": "{{ target_gateway }}" },
+              { "Name": "IpV4ConfigIpAddress", "Value": "{{ target_ip }}" },
+              { "Name": "IpV4ConfigNetmask", "Value": "{{ target_netmask }}" },
+              { "Name": "NameServer", "Value": "{{ target_dns }}" },
+              { "Name": "AlternateNameServer", "Value": "" },
+              { "Name": "IpV6ConfigGateway", "Value": "" },
+              { "Name": "IpV6ConfigIpAddress", "Value": "" },
+              { "Name": "IpV6ConfigPrefix", "Value": "" }
+            ]
           },
           "Image": { 
             "Moid": "{{ (os_file_resp.api_response.Results | default([os_file_resp.api_response]))[0].Moid }}",
