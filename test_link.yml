@@ -1,0 +1,31 @@
+- name: "Prueba de Ruta API"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    api_info:
+      api_private_key: "{{ api_private_key }}"
+      api_key_id: "{{ api_key_id }}"
+      api_uri: "https://intersight.com"
+  tasks:
+    - name: "Validar con /api/v1/ en el path"
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: "/api/v1/organization/Organizations"
+        method: GET
+      register: res_path_full
+      ignore_errors: true
+
+    - name: "Validar sin /api/v1/ en el path"
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: "organization/Organizations"
+        method: GET
+      register: res_path_short
+      ignore_errors: true
+
+    - name: "Diagnóstico"
+      debug:
+        msg: 
+          - "Resultado con path largo: {{ res_path_full.msg | default('SUCCESS') }}"
+          - "Resultado con path corto: {{ res_path_short.msg | default('SUCCESS') }}"
