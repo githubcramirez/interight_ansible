@@ -120,8 +120,8 @@
             "Moid": "{{ (server_search.api_response.Results | default([server_search.api_response]))[0].SourceMoid | default((server_search.api_response.Results | default([server_search.api_response]))[0].Moid) }}",
             "ObjectType": "{{ (server_search.api_response.Results | default([server_search.api_response]))[0].SourceObjectType | default('compute.RackUnit') }}"
           },
-          "StorageConfig": {
-            "Moid": "MStorBootVd",
+          "InstallTarget": {
+            "Name": "MStorBootVd",
             "ObjectType": "os.VirtualDrive"
           }
         }
