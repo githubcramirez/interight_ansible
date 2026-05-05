@@ -21,7 +21,6 @@
     network_device: "eth1"
 
   tasks:
-    # --- Las tareas 1 a 5 se mantienen igual (funcionan correctamente) ---
     - name: "1. Obtener Moid de la Organización"
       cisco.intersight.intersight_rest_api:
         api_private_key: "{{ api_private_key }}"
@@ -121,7 +120,9 @@
             "ObjectType": "{{ (server_search.api_response.Results | default([server_search.api_response]))[0].SourceObjectType | default('compute.RackUnit') }}"
           },
           "InstallTarget": {
+            "Id": "0",
             "Name": "MStorBootVd",
+            "StorageControllerSlotId": "MSTOR-RAID",
             "ObjectType": "os.VirtualDrive"
           }
         }
