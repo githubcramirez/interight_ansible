@@ -1,24 +1,25 @@
 ---
-- name: "Cisco Intersight - Despliegue RHEL 9.6"
+- name: "Cisco Intersight - Despliegue RHEL 9.6 AI-Workloads"
   hosts: localhost
   connection: local
   gather_facts: false
 
   vars:
-    api_info: &api_info
-      api_private_key: "{{ api_private_key | default(omit) }}"
-      api_key_id: "{{ api_key_id | default(omit) }}"
-      # URL base explícita para evitar ambigüedades
-      api_uri: "https://intersight.com/api/v1"
+    # Parámetros de conexión validados
+    api_info:
+      api_private_key: "{{ api_private_key }}"
+      api_key_id: "{{ api_key_id }}"
+      api_uri: "https://intersight.com"
       validate_certs: true
 
+    # Nombres de recursos (Verificados en tus capturas)
     organization_name: "AI-Workloads"
     server_name: "CX-DCC-DL2-S9108-AI-1-1-5"
     os_image_name: "Red Hat Enterprise Linux 9.6"
     scu_image_name: "SCU-7.1.5.250100"
     os_config_file: "RHEL96.ks"
     
-    # Parámetros de Red
+    # Configuración de Red Real
     target_ip: "198.19.202.101"
     target_gateway: "198.19.202.1"
     target_netmask: "255.255.255.0"
@@ -28,22 +29,26 @@
     network_device: "eth1"
 
   tasks:
-    - name: "1. Obtener Moids base (Sin slash inicial)"
+    - name: "1. Obtener Moid de la Organización"
       cisco.intersight.intersight_rest_api:
-        <<: *api_info
-        # Eliminamos el '/' inicial del path
-        resource_path: "{{ item.path }}"
+        <<: "{{ api_info }}"
+        resource_path: "/api/v1/organization/Organizations"
         query_params:
-          $filter: "Name eq '{{ item.name }}'"
-      loop:
-        - { path: 'organization/Organizations', name: '{{ organization_name }}' }
-        - { path: 'compute/PhysicalSummaries', name: '{{ server_name }}' }
-      register: base_moids
+          $filter: "Name eq '{{ organization_name }}'"
+      register: org_resp
 
-    - name: "2. Obtener Moids de Software"
+    - name: "2. Obtener Moid del Servidor"
       cisco.intersight.intersight_rest_api:
-        <<: *api_info
-        resource_path: "{{ item.path }}"
+        <<: "{{ api_info }}"
+        resource_path: "/api/v1/compute/PhysicalSummaries"
+        query_params:
+          $filter: "Name eq '{{ server_name }}'"
+      register: server_search
+
+    - name: "3. Obtener Moids de Software y Configuración"
+      cisco.intersight.intersight_rest_api:
+        <<: "{{ api_info }}"
+        resource_path: "/api/v1/{{ item.path }}"
         query_params:
           $filter: "Name eq '{{ item.name }}'"
       loop:
@@ -52,11 +57,11 @@
         - { path: 'os/ConfigurationFiles', name: '{{ os_config_file }}' }
       register: software_moids
 
-    - name: "3. Ejecutar Instalación de SO"
+    - name: "4. Ejecutar Instalación de SO en MStorBootVd"
       cisco.intersight.intersight_rest_api:
-        <<: *api_info
-        resource_path: 'os/Installations'
-        method: POST
+        <<: "{{ api_info }}"
+        resource_path: "/api/v1/os/Installations"
+        update_method: POST
         api_body: {
           "ConfigurationSource": "Custom",
           "InstallMethod": "vMedia",
@@ -81,13 +86,18 @@
           "Image": { "Moid": "{{ software_moids.results[0].api_response.Results[0].Moid }}" },
           "OsduImage": { "Moid": "{{ software_moids.results[1].api_response.Results[0].Moid }}" },
           "ConfigurationFile": { "Moid": "{{ software_moids.results[2].api_response.Results[0].Moid }}" },
-          "Organization": { "Moid": "{{ base_moids.results[0].api_response.Results[0].Moid }}" },
+          "Organization": { "Moid": "{{ org_resp.api_response.Results[0].Moid }}" },
           "Server": {
-            "Moid": "{{ base_moids.results[1].api_response.Results[0].SourceMoid }}",
-            "ObjectType": "{{ base_moids.results[1].api_response.Results[0].SourceObjectType }}"
+            "Moid": "{{ server_search.api_response.Results[0].SourceMoid }}",
+            "ObjectType": "{{ server_search.api_response.Results[0].SourceObjectType }}"
           },
           "StorageConfig": {
             "Moid": "MStorBootVd",
             "ObjectType": "os.VirtualDrive"
           }
         }
+      register: deployment_result
+
+    - name: "Resumen del Despliegue"
+      debug:
+        msg: "El despliegue de RHEL 9.6 ha sido enviado exitosamente al servidor {{ server_name }}."
