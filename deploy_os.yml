@@ -94,8 +94,8 @@
               }
             },
             "Nameserver": "{{ target_dns }}",
-            "NtpServers": ["{{ target_ntp }}"],
             "NetworkDevice": "{{ network_device }}",
+            "IsRootPasswordCrypted": false,
             "RootPassword": "{{ vault_password }}",
             "Source": "Template"
           },
