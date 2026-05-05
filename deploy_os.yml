@@ -98,18 +98,7 @@
             "NetworkDevice": "{{ network_device }}",
             "IsRootPasswordCrypted": false,
             "RootPassword": "{{ vault_password }}",
-            "Source": "Template",
-            "AdditionalParameters": [
-              { "ObjectType": "os.PlaceHolderExecutionInput", "Name": "IpVersion", "Value": "V4" },
-              { "ObjectType": "os.PlaceHolderExecutionInput", "Name": "IpV4ConfigGateway", "Value": "{{ target_gateway }}" },
-              { "ObjectType": "os.PlaceHolderExecutionInput", "Name": "IpV4ConfigIpAddress", "Value": "{{ target_ip }}" },
-              { "ObjectType": "os.PlaceHolderExecutionInput", "Name": "IpV4ConfigNetmask", "Value": "{{ target_netmask }}" },
-              { "ObjectType": "os.PlaceHolderExecutionInput", "Name": "NameServer", "Value": "{{ target_dns }}" },
-              { "ObjectType": "os.PlaceHolderExecutionInput", "Name": "AlternateNameServer", "Value": "" },
-              { "ObjectType": "os.PlaceHolderExecutionInput", "Name": "IpV6ConfigGateway", "Value": "" },
-              { "ObjectType": "os.PlaceHolderExecutionInput", "Name": "IpV6ConfigIpAddress", "Value": "" },
-              { "ObjectType": "os.PlaceHolderExecutionInput", "Name": "IpV6ConfigPrefix", "Value": "" }
-            ]
+            "Source": "Template"
           },
           "Image": { 
             "Moid": "{{ (os_file_resp.api_response.Results | default([os_file_resp.api_response]))[0].Moid }}",
