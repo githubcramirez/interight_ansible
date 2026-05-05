@@ -5,21 +5,14 @@
   gather_facts: false
 
   vars:
-    # Parámetros de conexión validados
-    api_info:
-      api_private_key: "{{ api_private_key }}"
-      api_key_id: "{{ api_key_id }}"
-      api_uri: "https://intersight.com"
-      validate_certs: true
-
-    # Nombres de recursos (Verificados en tus capturas)
+    # Nombres de recursos verificados
     organization_name: "AI-Workloads"
     server_name: "CX-DCC-DL2-S9108-AI-1-1-5"
     os_image_name: "Red Hat Enterprise Linux 9.6"
     scu_image_name: "SCU-7.1.5.250100"
     os_config_file: "RHEL96.ks"
     
-    # Configuración de Red Real
+    # Configuración de Red
     target_ip: "198.19.202.101"
     target_gateway: "198.19.202.1"
     target_netmask: "255.255.255.0"
@@ -31,7 +24,9 @@
   tasks:
     - name: "1. Obtener Moid de la Organización"
       cisco.intersight.intersight_rest_api:
-        <<: "{{ api_info }}"
+        api_private_key: "{{ api_private_key }}"
+        api_key_id: "{{ api_key_id }}"
+        api_uri: "https://intersight.com"
         resource_path: "/api/v1/organization/Organizations"
         query_params:
           $filter: "Name eq '{{ organization_name }}'"
@@ -39,7 +34,9 @@
 
     - name: "2. Obtener Moid del Servidor"
       cisco.intersight.intersight_rest_api:
-        <<: "{{ api_info }}"
+        api_private_key: "{{ api_private_key }}"
+        api_key_id: "{{ api_key_id }}"
+        api_uri: "https://intersight.com"
         resource_path: "/api/v1/compute/PhysicalSummaries"
         query_params:
           $filter: "Name eq '{{ server_name }}'"
@@ -47,7 +44,9 @@
 
     - name: "3. Obtener Moids de Software y Configuración"
       cisco.intersight.intersight_rest_api:
-        <<: "{{ api_info }}"
+        api_private_key: "{{ api_private_key }}"
+        api_key_id: "{{ api_key_id }}"
+        api_uri: "https://intersight.com"
         resource_path: "/api/v1/{{ item.path }}"
         query_params:
           $filter: "Name eq '{{ item.name }}'"
@@ -59,7 +58,9 @@
 
     - name: "4. Ejecutar Instalación de SO en MStorBootVd"
       cisco.intersight.intersight_rest_api:
-        <<: "{{ api_info }}"
+        api_private_key: "{{ api_private_key }}"
+        api_key_id: "{{ api_key_id }}"
+        api_uri: "https://intersight.com"
         resource_path: "/api/v1/os/Installations"
         update_method: POST
         api_body: {
