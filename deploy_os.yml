@@ -11,7 +11,7 @@
     scu_image_name: "SCU-7.1.5.250100"
     os_config_file: "RHEL96.ks"
     
-    # Red (Valores reales solicitados)
+    # Red
     target_ip: "198.19.202.101"
     target_gateway: "198.19.202.1"
     target_netmask: "255.255.255.0"
@@ -21,7 +21,55 @@
     network_device: "eth1"
 
   tasks:
-    # ... Las tareas 1 a 5 se mantienen igual (ya funcionan perfectamente) ...
+    - name: "1. Obtener Moid de la Organización"
+      cisco.intersight.intersight_rest_api:
+        api_private_key: "{{ api_private_key }}"
+        api_key_id: "{{ api_key_id }}"
+        api_uri: "https://intersight.com"
+        resource_path: "/api/v1/organization/Organizations"
+        query_params:
+          $filter: "Name eq '{{ organization_name }}'"
+      register: org_resp
+
+    - name: "2. Obtener Moid del Servidor"
+      cisco.intersight.intersight_rest_api:
+        api_private_key: "{{ api_private_key }}"
+        api_key_id: "{{ api_key_id }}"
+        api_uri: "https://intersight.com"
+        resource_path: "/api/v1/compute/PhysicalSummaries"
+        query_params:
+          $filter: "Name eq '{{ server_name }}'"
+      register: server_search
+
+    - name: "3. Obtener Moid de Imagen SO"
+      cisco.intersight.intersight_rest_api:
+        api_private_key: "{{ api_private_key }}"
+        api_key_id: "{{ api_key_id }}"
+        api_uri: "https://intersight.com"
+        resource_path: "/api/v1/softwarerepository/OperatingSystemFiles"
+        query_params:
+          $filter: "Name eq '{{ os_image_name }}'"
+      register: os_file_resp
+
+    - name: "4. Obtener Moid de SCU"
+      cisco.intersight.intersight_rest_api:
+        api_private_key: "{{ api_private_key }}"
+        api_key_id: "{{ api_key_id }}"
+        api_uri: "https://intersight.com"
+        resource_path: "/api/v1/firmware/ServerConfigurationUtilityDistributables"
+        query_params:
+          $filter: "Name eq '{{ scu_image_name }}'"
+      register: scu_file_resp
+
+    - name: "5. Obtener Moid de Configuración"
+      cisco.intersight.intersight_rest_api:
+        api_private_key: "{{ api_private_key }}"
+        api_key_id: "{{ api_key_id }}"
+        api_uri: "https://intersight.com"
+        resource_path: "/api/v1/os/ConfigurationFiles"
+        query_params:
+          $filter: "Name eq '{{ os_config_file }}'"
+      register: config_file_resp
 
     - name: "6. Ejecutar Instalación de SO"
       cisco.intersight.intersight_rest_api:
@@ -49,7 +97,6 @@
             "NtpServers": ["{{ target_ntp }}"],
             "NetworkDevice": "{{ network_device }}",
             "RootPassword": "{{ vault_password }}",
-            # CAMBIO CRÍTICO: El enum os.AnswersSourceType requiere 'Template' o 'None'
             "Source": "Template"
           },
           "Image": { "Moid": "{{ (os_file_resp.api_response.Results | default([os_file_resp.api_response]))[0].Moid }}" },
