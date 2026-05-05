@@ -10,7 +10,7 @@
     os_image_name: "Red Hat Enterprise Linux 9.6"
     scu_image_name: "SCU-7.1.5.250100"
     # Actualizado al nuevo archivo
-    os_config_file: "RHEL96_v15.ks"
+    os_config_file: "RHEL96_v16.ks"
     
     # Red
     target_ip: "198.19.202.101"
@@ -84,10 +84,12 @@
           "OverrideSecureBoot": true,
           "Description": "Deployment via AWX",
           "Answers": {
+            "ClassId": "os.Answers",
             "ObjectType": "os.Answers",
             "Hostname": "{{ target_hostname }}",
             "IpConfigType": "static",
             "IpConfiguration": {
+              "ClassId": "os.Ipv4Configuration",
               "ObjectType": "os.Ipv4Configuration",
               "Gateway": "{{ target_gateway }}",
               "IpAddress": "{{ target_ip }}",
@@ -123,6 +125,7 @@
             "Id": "0",
             "Name": "MStorBootVd",
             "StorageControllerSlotId": "MSTOR-RAID",
+            "ClassId": "os.VirtualDrive",
             "ObjectType": "os.VirtualDrive"
           }
         }
