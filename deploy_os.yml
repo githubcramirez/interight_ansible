@@ -83,6 +83,13 @@
           "InstallMethod": "vMedia",
           "OverrideSecureBoot": true,
           "Description": "Deployment via AWX",
+          # LA CLAVE: AdditionalParameters va en la raíz, a nivel de InstallMethod y Answers
+          "AdditionalParameters": [
+            { "ObjectType": "os.PlaceHolderExecutionInput", "Name": "Ipv4ConfigGateway", "Value": "{{ target_gateway }}" },
+            { "ObjectType": "os.PlaceHolderExecutionInput", "Name": "Ipv4ConfigIpAddress", "Value": "{{ target_ip }}" },
+            { "ObjectType": "os.PlaceHolderExecutionInput", "Name": "Ipv4ConfigNetmask", "Value": "24" },
+            { "ObjectType": "os.PlaceHolderExecutionInput", "Name": "NameServer", "Value": "{{ target_dns }}" }
+          ],
           "Answers": {
             "ObjectType": "os.Answers",
             "Hostname": "{{ target_hostname }}",
@@ -97,14 +104,7 @@
             "NetworkDevice": "{{ network_device }}",
             "IsRootPasswordCrypted": false,
             "RootPassword": "{{ vault_password }}",
-            "Source": "Template",
-            # MAPEADO EXACTO PARA LA PLANTILLA v11
-            "AdditionalParameters": [
-              { "ObjectType": "os.PlaceHolderExecutionInput", "Name": "Ipv4ConfigGateway", "Value": "{{ target_gateway }}" },
-              { "ObjectType": "os.PlaceHolderExecutionInput", "Name": "Ipv4ConfigIpAddress", "Value": "{{ target_ip }}" },
-              { "ObjectType": "os.PlaceHolderExecutionInput", "Name": "Ipv4ConfigNetmask", "Value": "24" },
-              { "ObjectType": "os.PlaceHolderExecutionInput", "Name": "NameServer", "Value": "{{ target_dns }}" }
-            ]
+            "Source": "Template"
           },
           "Image": { 
             "Moid": "{{ (os_file_resp.api_response.Results | default([os_file_resp.api_response]))[0].Moid }}",
