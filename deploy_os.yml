@@ -10,7 +10,7 @@
     os_image_name: "Red Hat Enterprise Linux 9.6"
     scu_image_name: "SCU-7.1.5.250100"
     # Actualizado al nuevo archivo
-    os_config_file: "RHEL96_v5.ks"
+    os_config_file: "RHEL96_v6.ks"
     
     # Red
     target_ip: "198.19.202.101"
@@ -99,13 +99,7 @@
             "NetworkDevice": "{{ network_device }}",
             "IsRootPasswordCrypted": false,
             "RootPassword": "{{ vault_password }}",
-            "Source": "Template",
-            "AdditionalParameters": [
-              { "Name": "Gateway", "Value": "{{ target_gateway }}" },
-              { "Name": "IpAddress", "Value": "{{ target_ip }}" },
-              { "Name": "Netmask", "Value": "{{ target_netmask }}" },
-              { "Name": "NameServer", "Value": "{{ target_dns }}" }
-            ]
+            "Source": "Template"
           },
           "Image": { 
             "Moid": "{{ (os_file_resp.api_response.Results | default([os_file_resp.api_response]))[0].Moid }}",
