@@ -84,17 +84,16 @@
           "OverrideSecureBoot": true,
           "Description": "Deployment via AWX",
           "Answers": {
+            "ClassId": "os.Answers",
             "ObjectType": "os.Answers",
             "Hostname": "{{ target_hostname }}",
             "IpConfigType": "static",
             "IpConfiguration": {
+              "ClassId": "os.Ipv4Configuration",
               "ObjectType": "os.Ipv4Configuration",
-              "IpV4Config": {
-                "ObjectType": "comm.Ipv4Interface",
-                "Gateway": "{{ target_gateway }}",
-                "IpAddress": "{{ target_ip }}",
-                "Netmask": "{{ target_netmask }}"
-              }
+              "Gateway": "{{ target_gateway }}",
+              "IpAddress": "{{ target_ip }}",
+              "Netmask": "{{ target_netmask }}"
             },
             "Nameserver": "{{ target_dns }}",
             "NetworkDevice": "{{ network_device }}",
@@ -126,6 +125,7 @@
             "Id": "0",
             "Name": "MStorBootVd",
             "StorageControllerSlotId": "MSTOR-RAID",
+            "ClassId": "os.VirtualDrive",
             "ObjectType": "os.VirtualDrive"
           }
         }
