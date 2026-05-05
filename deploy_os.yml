@@ -84,12 +84,10 @@
           "OverrideSecureBoot": true,
           "Description": "Deployment via AWX",
           "Answers": {
-            "ClassId": "os.Answers",
             "ObjectType": "os.Answers",
             "Hostname": "{{ target_hostname }}",
             "IpConfigType": "static",
             "IpConfiguration": {
-              "ClassId": "os.Ipv4Configuration",
               "ObjectType": "os.Ipv4Configuration",
               "Gateway": "{{ target_gateway }}",
               "IpAddress": "{{ target_ip }}",
@@ -101,59 +99,6 @@
             "RootPassword": "{{ vault_password }}",
             "Source": "Template"
           },
-          
-          # EL BLOQUE MAESTRO CON EL PUNTO EN EL NOMBRE Y EL ISVALUESET
-          "AdditionalParameters": [
-            {
-              "ClassId": "os.PlaceHolder",
-              "ObjectType": "os.PlaceHolder",
-              "IsValueSet": true,
-              "Value": "{{ target_gateway }}",
-              "Type": {
-                "ClassId": "workflow.PrimitiveDataType",
-                "ObjectType": "workflow.PrimitiveDataType",
-                "Name": ".Ipv4ConfigGateway",
-                "Properties": {
-                  "ClassId": "workflow.PrimitiveDataProperty",
-                  "ObjectType": "workflow.PrimitiveDataProperty",
-                  "Type": "string"
-                }
-              }
-            },
-            {
-              "ClassId": "os.PlaceHolder",
-              "ObjectType": "os.PlaceHolder",
-              "IsValueSet": true,
-              "Value": "{{ target_ip }}",
-              "Type": {
-                "ClassId": "workflow.PrimitiveDataType",
-                "ObjectType": "workflow.PrimitiveDataType",
-                "Name": ".Ipv4ConfigIpAddress",
-                "Properties": {
-                  "ClassId": "workflow.PrimitiveDataProperty",
-                  "ObjectType": "workflow.PrimitiveDataProperty",
-                  "Type": "string"
-                }
-              }
-            },
-            {
-              "ClassId": "os.PlaceHolder",
-              "ObjectType": "os.PlaceHolder",
-              "IsValueSet": true,
-              "Value": "{{ target_netmask }}",
-              "Type": {
-                "ClassId": "workflow.PrimitiveDataType",
-                "ObjectType": "workflow.PrimitiveDataType",
-                "Name": ".Ipv4ConfigNetmask",
-                "Properties": {
-                  "ClassId": "workflow.PrimitiveDataProperty",
-                  "ObjectType": "workflow.PrimitiveDataProperty",
-                  "Type": "string"
-                }
-              }
-            }
-          ],
-          
           "Image": { 
             "Moid": "{{ (os_file_resp.api_response.Results | default([os_file_resp.api_response]))[0].Moid }}",
             "ObjectType": "softwarerepository.OperatingSystemFile"
@@ -178,7 +123,6 @@
             "Id": "0",
             "Name": "MStorBootVd",
             "StorageControllerSlotId": "MSTOR-RAID",
-            "ClassId": "os.VirtualDrive",
             "ObjectType": "os.VirtualDrive"
           }
         }
