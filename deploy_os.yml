@@ -77,7 +77,8 @@
         api_key_id: "{{ api_key_id }}"
         api_uri: "https://intersight.com"
         resource_path: "/api/v1/os/Installations"
-        update_method: POST
+        # CORRECCIÓN CRÍTICA: 'post' en minúsculas 
+        update_method: "post"
         api_body: {
           "ConfigurationSource": "Custom",
           "InstallMethod": "vMedia",
