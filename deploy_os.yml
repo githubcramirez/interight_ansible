@@ -83,79 +83,11 @@
           "InstallMethod": "vMedia",
           "OverrideSecureBoot": true,
           "Description": "Deployment via AWX",
-          "AdditionalParameters": [
-            {
-              "ClassId": "os.PlaceHolder",
-              "ObjectType": "os.PlaceHolder",
-              "IsValueSet": true,
-              "Value": "{{ target_gateway }}",
-              "Type": {
-                "ClassId": "workflow.PrimitiveDataType",
-                "ObjectType": "workflow.PrimitiveDataType",
-                "Name": "Ipv4ConfigGateway",
-                "Properties": {
-                  "ClassId": "workflow.PrimitiveDataProperty",
-                  "ObjectType": "workflow.PrimitiveDataProperty",
-                  "Type": "string"
-                }
-              }
-            },
-            {
-              "ClassId": "os.PlaceHolder",
-              "ObjectType": "os.PlaceHolder",
-              "IsValueSet": true,
-              "Value": "{{ target_ip }}",
-              "Type": {
-                "ClassId": "workflow.PrimitiveDataType",
-                "ObjectType": "workflow.PrimitiveDataType",
-                "Name": "Ipv4ConfigIpAddress",
-                "Properties": {
-                  "ClassId": "workflow.PrimitiveDataProperty",
-                  "ObjectType": "workflow.PrimitiveDataProperty",
-                  "Type": "string"
-                }
-              }
-            },
-            {
-              "ClassId": "os.PlaceHolder",
-              "ObjectType": "os.PlaceHolder",
-              "IsValueSet": true,
-              "Value": "{{ target_netmask }}",
-              "Type": {
-                "ClassId": "workflow.PrimitiveDataType",
-                "ObjectType": "workflow.PrimitiveDataType",
-                "Name": "Ipv4ConfigNetmask",
-                "Properties": {
-                  "ClassId": "workflow.PrimitiveDataProperty",
-                  "ObjectType": "workflow.PrimitiveDataProperty",
-                  "Type": "string"
-                }
-              }
-            },
-            {
-              "ClassId": "os.PlaceHolder",
-              "ObjectType": "os.PlaceHolder",
-              "IsValueSet": true,
-              "Value": "{{ target_dns }}",
-              "Type": {
-                "ClassId": "workflow.PrimitiveDataType",
-                "ObjectType": "workflow.PrimitiveDataType",
-                "Name": "NameServer",
-                "Properties": {
-                  "ClassId": "workflow.PrimitiveDataProperty",
-                  "ObjectType": "workflow.PrimitiveDataProperty",
-                  "Type": "string"
-                }
-              }
-            }
-          ],
           "Answers": {
-            "ClassId": "os.Answers",
             "ObjectType": "os.Answers",
             "Hostname": "{{ target_hostname }}",
             "IpConfigType": "static",
             "IpConfiguration": {
-              "ClassId": "os.Ipv4Configuration",
               "ObjectType": "os.Ipv4Configuration",
               "Gateway": "{{ target_gateway }}",
               "IpAddress": "{{ target_ip }}",
@@ -165,7 +97,31 @@
             "NetworkDevice": "{{ network_device }}",
             "IsRootPasswordCrypted": false,
             "RootPassword": "{{ vault_password }}",
-            "Source": "Template"
+            "Source": "Template",
+            
+            # EL GRAN SECRETO: El arreglo "Answers" anidado
+            "Answers": [
+              {
+                "Name": "Ipv4ConfigGateway",
+                "Source": "Template",
+                "Value": "{{ target_gateway }}"
+              },
+              {
+                "Name": "Ipv4ConfigIpAddress",
+                "Source": "Template",
+                "Value": "{{ target_ip }}"
+              },
+              {
+                "Name": "Ipv4ConfigNetmask",
+                "Source": "Template",
+                "Value": "24"
+              },
+              {
+                "Name": "NameServer",
+                "Source": "Template",
+                "Value": "{{ target_dns }}"
+              }
+            ]
           },
           "Image": { 
             "Moid": "{{ (os_file_resp.api_response.Results | default([os_file_resp.api_response]))[0].Moid }}",
@@ -191,7 +147,6 @@
             "Id": "0",
             "Name": "MStorBootVd",
             "StorageControllerSlotId": "MSTOR-RAID",
-            "ClassId": "os.VirtualDrive",
             "ObjectType": "os.VirtualDrive"
           }
         }
