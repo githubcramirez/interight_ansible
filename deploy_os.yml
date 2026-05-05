@@ -101,14 +101,13 @@
             "Source": "Template",
             "AdditionalParameters": [
               { "Name": "IpVersion", "Value": "V4" },
-              { "Name": "IpConfigType", "Value": "static" },
-              { "Name": "IpV4ConfigIpAddress", "Value": "{{ target_ip }}" },
               { "Name": "IpV4ConfigGateway", "Value": "{{ target_gateway }}" },
+              { "Name": "IpV4ConfigIpAddress", "Value": "{{ target_ip }}" },
               { "Name": "IpV4ConfigNetmask", "Value": "{{ target_netmask }}" },
               { "Name": "NameServer", "Value": "{{ target_dns }}" },
               { "Name": "AlternateNameServer", "Value": "" },
-              { "Name": "IpV6ConfigIpAddress", "Value": "" },
               { "Name": "IpV6ConfigGateway", "Value": "" },
+              { "Name": "IpV6ConfigIpAddress", "Value": "" },
               { "Name": "IpV6ConfigPrefix", "Value": "" }
             ]
           },
