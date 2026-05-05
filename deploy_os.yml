@@ -83,50 +83,7 @@
           "InstallMethod": "vMedia",
           "OverrideSecureBoot": true,
           "Description": "Deployment via AWX",
-          "AdditionalParameters": [
-            {
-              "ClassId": "os.PlaceHolder",
-              "ObjectType": "os.PlaceHolder",
-              "Value": "{{ target_gateway }}",
-              "Type": {
-                "ClassId": "workflow.PrimitiveDataType",
-                "ObjectType": "workflow.PrimitiveDataType",
-                "Name": ".Ipv4ConfigGateway"
-              }
-            },
-            {
-              "ClassId": "os.PlaceHolder",
-              "ObjectType": "os.PlaceHolder",
-              "Value": "{{ target_ip }}",
-              "Type": {
-                "ClassId": "workflow.PrimitiveDataType",
-                "ObjectType": "workflow.PrimitiveDataType",
-                "Name": ".Ipv4ConfigIpAddress"
-              }
-            },
-            {
-              "ClassId": "os.PlaceHolder",
-              "ObjectType": "os.PlaceHolder",
-              "Value": "{{ target_netmask }}",
-              "Type": {
-                "ClassId": "workflow.PrimitiveDataType",
-                "ObjectType": "workflow.PrimitiveDataType",
-                "Name": ".Ipv4ConfigNetmask"
-              }
-            },
-            {
-              "ClassId": "os.PlaceHolder",
-              "ObjectType": "os.PlaceHolder",
-              "Value": "{{ target_dns }}",
-              "Type": {
-                "ClassId": "workflow.PrimitiveDataType",
-                "ObjectType": "workflow.PrimitiveDataType",
-                "Name": ".NameServer"
-              }
-            }
-          ],
           "Answers": {
-            "ClassId": "os.Answers",
             "ObjectType": "os.Answers",
             "Hostname": "{{ target_hostname }}",
             "IpConfigType": "static",
@@ -140,7 +97,13 @@
             "NetworkDevice": "{{ network_device }}",
             "IsRootPasswordCrypted": false,
             "RootPassword": "{{ vault_password }}",
-            "Source": "Template"
+            "Source": "Template",
+            
+            # VARIABLES PERSONALIZADAS INYECTADAS DIRECTAMENTE
+            "Ipv4ConfigGateway": "{{ target_gateway }}",
+            "Ipv4ConfigIpAddress": "{{ target_ip }}",
+            "Ipv4ConfigNetmask": "{{ target_netmask }}",
+            "NameServer": "{{ target_dns }}"
           },
           "Image": { 
             "Moid": "{{ (os_file_resp.api_response.Results | default([os_file_resp.api_response]))[0].Moid }}",
