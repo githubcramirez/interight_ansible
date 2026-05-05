@@ -99,14 +99,7 @@
             "NetworkDevice": "{{ network_device }}",
             "IsRootPasswordCrypted": false,
             "RootPassword": "{{ vault_password }}",
-            "Source": "Template",
-            # EL EQUILIBRIO PERFECTO: Solo las 4 variables que pide el RHEL96_v3.ks
-            "AdditionalParameters": [
-              { "Name": "Ipv4ConfigGateway", "Value": "{{ target_gateway }}" },
-              { "Name": "Ipv4ConfigIpAddress", "Value": "{{ target_ip }}" },
-              { "Name": "Ipv4ConfigNetmask", "Value": "{{ target_netmask }}" },
-              { "Name": "NameServer", "Value": "{{ target_dns }}" }
-            ]
+            "Source": "Template"
           },
           "Image": { 
             "Moid": "{{ (os_file_resp.api_response.Results | default([os_file_resp.api_response]))[0].Moid }}",
