@@ -92,7 +92,7 @@
               "Type": {
                 "ClassId": "workflow.PrimitiveDataType",
                 "ObjectType": "workflow.PrimitiveDataType",
-                "Name": ".Ipv4ConfigGateway",
+                "Name": "Ipv4ConfigGateway",
                 "Properties": {
                   "ClassId": "workflow.PrimitiveDataProperty",
                   "ObjectType": "workflow.PrimitiveDataProperty",
@@ -108,7 +108,7 @@
               "Type": {
                 "ClassId": "workflow.PrimitiveDataType",
                 "ObjectType": "workflow.PrimitiveDataType",
-                "Name": ".Ipv4ConfigIpAddress",
+                "Name": "Ipv4ConfigIpAddress",
                 "Properties": {
                   "ClassId": "workflow.PrimitiveDataProperty",
                   "ObjectType": "workflow.PrimitiveDataProperty",
@@ -124,7 +124,7 @@
               "Type": {
                 "ClassId": "workflow.PrimitiveDataType",
                 "ObjectType": "workflow.PrimitiveDataType",
-                "Name": ".Ipv4ConfigNetmask",
+                "Name": "Ipv4ConfigNetmask",
                 "Properties": {
                   "ClassId": "workflow.PrimitiveDataProperty",
                   "ObjectType": "workflow.PrimitiveDataProperty",
@@ -140,7 +140,7 @@
               "Type": {
                 "ClassId": "workflow.PrimitiveDataType",
                 "ObjectType": "workflow.PrimitiveDataType",
-                "Name": ".NameServer",
+                "Name": "NameServer",
                 "Properties": {
                   "ClassId": "workflow.PrimitiveDataProperty",
                   "ObjectType": "workflow.PrimitiveDataProperty",
