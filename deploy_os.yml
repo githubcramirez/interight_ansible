@@ -21,6 +21,7 @@
     network_device: "eth1"
 
   tasks:
+    # --- Las tareas 1 a 5 se mantienen igual (funcionan correctamente) ---
     - name: "1. Obtener Moid de la Organización"
       cisco.intersight.intersight_rest_api:
         api_private_key: "{{ api_private_key }}"
@@ -79,9 +80,9 @@
         resource_path: "/api/v1/os/Installs"
         update_method: "post"
         api_body: {
-          "ConfigurationSource": "Custom",
           "InstallMethod": "vMedia",
           "OverrideSecureBoot": true,
+          "Description": "Deployment via AWX",
           "Answers": {
             "Hostname": "{{ target_hostname }}",
             "IpConfigType": "static",
@@ -99,10 +100,22 @@
             "RootPassword": "{{ vault_password }}",
             "Source": "Template"
           },
-          "Image": { "Moid": "{{ (os_file_resp.api_response.Results | default([os_file_resp.api_response]))[0].Moid }}" },
-          "OsduImage": { "Moid": "{{ (scu_file_resp.api_response.Results | default([scu_file_resp.api_response]))[0].Moid }}" },
-          "ConfigurationFile": { "Moid": "{{ (config_file_resp.api_response.Results | default([config_file_resp.api_response]))[0].Moid }}" },
-          "Organization": { "Moid": "{{ (org_resp.api_response.Results | default([org_resp.api_response]))[0].Moid }}" },
+          "Image": { 
+            "Moid": "{{ (os_file_resp.api_response.Results | default([os_file_resp.api_response]))[0].Moid }}",
+            "ObjectType": "softwarerepository.OperatingSystemFile"
+          },
+          "OsduImage": { 
+            "Moid": "{{ (scu_file_resp.api_response.Results | default([scu_file_resp.api_response]))[0].Moid }}",
+            "ObjectType": "firmware.ServerConfigurationUtilityDistributable"
+          },
+          "ConfigurationFile": { 
+            "Moid": "{{ (config_file_resp.api_response.Results | default([config_file_resp.api_response]))[0].Moid }}",
+            "ObjectType": "os.ConfigurationFile"
+          },
+          "Organization": { 
+            "Moid": "{{ (org_resp.api_response.Results | default([org_resp.api_response]))[0].Moid }}",
+            "ObjectType": "organization.Organization"
+          },
           "Server": {
             "Moid": "{{ (server_search.api_response.Results | default([server_search.api_response]))[0].SourceMoid | default((server_search.api_response.Results | default([server_search.api_response]))[0].Moid) }}",
             "ObjectType": "{{ (server_search.api_response.Results | default([server_search.api_response]))[0].SourceObjectType | default('compute.RackUnit') }}"
