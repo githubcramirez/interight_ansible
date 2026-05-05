@@ -10,7 +10,7 @@
     os_image_name: "Red Hat Enterprise Linux 9.6"
     scu_image_name: "SCU-7.1.5.250100"
     # Actualizado al nuevo archivo
-    os_config_file: "RHEL96_v2.ks"
+    os_config_file: "RHEL96_v3.ks"
     
     # Red
     target_ip: "198.19.202.101"
