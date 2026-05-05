@@ -99,18 +99,17 @@
             "IsRootPasswordCrypted": false,
             "RootPassword": "{{ vault_password }}",
             "Source": "Template",
-            # AQUI ESTA LA MAGIA: Mapeo exacto de tus variables personalizadas
             "AdditionalParameters": [
-              { "Name": "AlternateNameServer", "Value": "{{ target_hostname }}" },
-              { "Name": "IpConfigType", "Value": "v4" },
-              { "Name": "Ipv4ConfigGateway", "Value": "{{ target_gateway }}" },
-              { "Name": "Ipv4ConfigIpAddress", "Value": "{{ target_ip }}" },
-              { "Name": "Ipv4ConfigNetmask", "Value": "24" },
-              { "Name": "Ipv6ConfigGateway", "Value": "" },
-              { "Name": "Ipv6ConfigIpAddress", "Value": "" },
-              { "Name": "Ipv6ConfigPrefix", "Value": "" },
-              { "Name": "IpVersion", "Value": "" },
-              { "Name": "NameServer", "Value": "{{ target_dns }}" }
+              { "Name": "IpVersion", "Value": "V4" },
+              { "Name": "IpConfigType", "Value": "static" },
+              { "Name": "IpV4ConfigIpAddress", "Value": "{{ target_ip }}" },
+              { "Name": "IpV4ConfigGateway", "Value": "{{ target_gateway }}" },
+              { "Name": "IpV4ConfigNetmask", "Value": "{{ target_netmask }}" },
+              { "Name": "NameServer", "Value": "{{ target_dns }}" },
+              { "Name": "AlternateNameServer", "Value": "" },
+              { "Name": "IpV6ConfigIpAddress", "Value": "" },
+              { "Name": "IpV6ConfigGateway", "Value": "" },
+              { "Name": "IpV6ConfigPrefix", "Value": "" }
             ]
           },
           "Image": { 
