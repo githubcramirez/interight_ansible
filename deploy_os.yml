@@ -10,7 +10,7 @@
     os_image_name: "Red Hat Enterprise Linux 9.6"
     scu_image_name: "SCU-7.1.5.250100"
     # Actualizado al nuevo archivo
-    os_config_file: "RHEL96_v11.ks"
+    os_config_file: "RHEL96_v12.ks"
     
     # Red
     target_ip: "198.19.202.101"
@@ -84,12 +84,10 @@
           "OverrideSecureBoot": true,
           "Description": "Deployment via AWX",
           "Answers": {
-            "ClassId": "os.Answers",
             "ObjectType": "os.Answers",
             "Hostname": "{{ target_hostname }}",
             "IpConfigType": "static",
             "IpConfiguration": {
-              "ClassId": "os.Ipv4Configuration",
               "ObjectType": "os.Ipv4Configuration",
               "Gateway": "{{ target_gateway }}",
               "IpAddress": "{{ target_ip }}",
@@ -99,39 +97,7 @@
             "NetworkDevice": "{{ network_device }}",
             "IsRootPasswordCrypted": false,
             "RootPassword": "{{ vault_password }}",
-            "Source": "Template",
-            
-            # EL ARREGLO ANSWERS CON SUS TIPOS DE OBJETO DECLARADOS
-            "Answers": [
-              {
-                "ClassId": "os.Answer",
-                "ObjectType": "os.Answer",
-                "Name": "Ipv4ConfigGateway",
-                "Source": "Template",
-                "Value": "{{ target_gateway }}"
-              },
-              {
-                "ClassId": "os.Answer",
-                "ObjectType": "os.Answer",
-                "Name": "Ipv4ConfigIpAddress",
-                "Source": "Template",
-                "Value": "{{ target_ip }}"
-              },
-              {
-                "ClassId": "os.Answer",
-                "ObjectType": "os.Answer",
-                "Name": "Ipv4ConfigNetmask",
-                "Source": "Template",
-                "Value": "24"
-              },
-              {
-                "ClassId": "os.Answer",
-                "ObjectType": "os.Answer",
-                "Name": "NameServer",
-                "Source": "Template",
-                "Value": "{{ target_dns }}"
-              }
-            ]
+            "Source": "Template"
           },
           "Image": { 
             "Moid": "{{ (os_file_resp.api_response.Results | default([os_file_resp.api_response]))[0].Moid }}",
@@ -157,7 +123,6 @@
             "Id": "0",
             "Name": "MStorBootVd",
             "StorageControllerSlotId": "MSTOR-RAID",
-            "ClassId": "os.VirtualDrive",
             "ObjectType": "os.VirtualDrive"
           }
         }
