@@ -99,7 +99,13 @@
             "NetworkDevice": "{{ network_device }}",
             "IsRootPasswordCrypted": false,
             "RootPassword": "{{ vault_password }}",
-            "Source": "Template"
+            "Source": "Template",
+            "AdditionalParameters": [
+              { "Name": "Gateway", "Value": "{{ target_gateway }}" },
+              { "Name": "IpAddress", "Value": "{{ target_ip }}" },
+              { "Name": "Netmask", "Value": "{{ target_netmask }}" },
+              { "Name": "NameServer", "Value": "{{ target_dns }}" }
+            ]
           },
           "Image": { 
             "Moid": "{{ (os_file_resp.api_response.Results | default([os_file_resp.api_response]))[0].Moid }}",
