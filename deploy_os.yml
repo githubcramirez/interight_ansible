@@ -103,7 +103,7 @@
                     "ObjectType": "os.Ipv4Configuration"
                   },
                   "IsRootPasswordCrypted": false,
-                  "Nameserver": "198.19.202.101",
+                  "Nameserver": "CX-DCC-DL2-S9108-AI-1-1-5",
                   "RootPassword": "{{ vault_password }}",
                   "Source": "Template"
                 },
