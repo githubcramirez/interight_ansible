@@ -21,6 +21,7 @@
     network_device: "eth1"
 
   tasks:
+    # ... Tareas 1 a 5 se mantienen igual (ya funcionan) ...
     - name: "1. Obtener Moid de la Organización"
       cisco.intersight.intersight_rest_api:
         api_private_key: "{{ api_private_key }}"
@@ -76,8 +77,8 @@
         api_private_key: "{{ api_private_key }}"
         api_key_id: "{{ api_key_id }}"
         api_uri: "https://intersight.com"
-        resource_path: "/api/v1/os/Installations"
-        # CORRECCIÓN CRÍTICA: 'post' en minúsculas 
+        # CAMBIO CLAVE: Endpoint correcto para creación de instalaciones
+        resource_path: "/api/v1/os/Installs"
         update_method: "post"
         api_body: {
           "ConfigurationSource": "Custom",
