@@ -11,7 +11,7 @@
     scu_image_name: "SCU-7.1.5.250100"
     os_config_file: "RHEL96.ks"
     
-    # Configuración de Red
+    # Red
     target_ip: "198.19.202.101"
     target_gateway: "198.19.202.1"
     target_netmask: "255.255.255.0"
@@ -104,8 +104,8 @@
           "ConfigurationFile": { "Moid": "{{ (config_file_resp.api_response.Results | default([config_file_resp.api_response]))[0].Moid }}" },
           "Organization": { "Moid": "{{ (org_resp.api_response.Results | default([org_resp.api_response]))[0].Moid }}" },
           "Server": {
-            "Moid": "{{ (server_search.api_response.Results | default([server_search.api_response]))[0].SourceMoid }}",
-            "ObjectType": "{{ (server_search.api_response.Results | default([server_search.api_response]))[0].SourceObjectType }}"
+            "Moid": "{{ (server_search.api_response.Results | default([server_search.api_response]))[0].SourceMoid | default((server_search.api_response.Results | default([server_search.api_response]))[0].Moid) }}",
+            "ObjectType": "{{ (server_search.api_response.Results | default([server_search.api_response]))[0].SourceObjectType | default('compute.RackUnit') }}"
           },
           "StorageConfig": {
             "Moid": "MStorBootVd",
