@@ -5,7 +5,7 @@
   gather_facts: false
 
   vars:
-    # Nombres de recursos verificados
+    # Variables de Recursos
     organization_name: "AI-Workloads"
     server_name: "CX-DCC-DL2-S9108-AI-1-1-5"
     os_image_name: "Red Hat Enterprise Linux 9.6"
@@ -84,13 +84,13 @@
             "RootPassword": "{{ vault_password }}",
             "Source": "Custom"
           },
-          "Image": { "Moid": "{{ software_moids.results[0].api_response.Results[0].Moid }}" },
-          "OsduImage": { "Moid": "{{ software_moids.results[1].api_response.Results[0].Moid }}" },
-          "ConfigurationFile": { "Moid": "{{ software_moids.results[2].api_response.Results[0].Moid }}" },
-          "Organization": { "Moid": "{{ org_resp.api_response.Results[0].Moid }}" },
+          "Image": { "Moid": "{{ software_moids.results[0].api_response.Moid | default(software_moids.results[0].api_response.Results[0].Moid) }}" },
+          "OsduImage": { "Moid": "{{ software_moids.results[1].api_response.Moid | default(software_moids.results[1].api_response.Results[0].Moid) }}" },
+          "ConfigurationFile": { "Moid": "{{ software_moids.results[2].api_response.Moid | default(software_moids.results[2].api_response.Results[0].Moid) }}" },
+          "Organization": { "Moid": "{{ org_resp.api_response.Moid | default(org_resp.api_response.Results[0].Moid) }}" },
           "Server": {
-            "Moid": "{{ server_search.api_response.Results[0].SourceMoid }}",
-            "ObjectType": "{{ server_search.api_response.Results[0].SourceObjectType }}"
+            "Moid": "{{ server_search.api_response.SourceMoid | default(server_search.api_response.Results[0].SourceMoid) }}",
+            "ObjectType": "{{ server_search.api_response.SourceObjectType | default(server_search.api_response.Results[0].SourceObjectType) }}"
           },
           "StorageConfig": {
             "Moid": "MStorBootVd",
@@ -101,4 +101,4 @@
 
     - name: "Resumen del Despliegue"
       debug:
-        msg: "El despliegue de RHEL 9.6 ha sido enviado exitosamente al servidor {{ server_name }}."
+        msg: "El despliegue ha sido enviado. Respuesta: {{ deployment_result }}"
