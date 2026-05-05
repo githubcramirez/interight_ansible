@@ -11,7 +11,7 @@
     scu_image_name: "SCU-7.1.5.250100"
     os_config_file: "RHEL96.ks"
     
-    # Red
+    # Configuración de Red
     target_ip: "198.19.202.101"
     target_gateway: "198.19.202.1"
     target_netmask: "255.255.255.0"
@@ -41,7 +41,7 @@
           $filter: "Name eq '{{ server_name }}'"
       register: server_search
 
-    - name: "3. Obtener Moids de Software"
+    - name: "3. Obtener Moid de Imagen SO"
       cisco.intersight.intersight_rest_api:
         api_private_key: "{{ api_private_key }}"
         api_key_id: "{{ api_key_id }}"
@@ -68,7 +68,7 @@
         api_uri: "https://intersight.com"
         resource_path: "/api/v1/os/ConfigurationFiles"
         query_params:
-          $filter: "Name eq '{{ os_config_file }}'"
+          $filter: "Name eq '{{ os_config }}' or Name eq '{{ os_config_file }}'"
       register: config_file_resp
 
     - name: "6. Ejecutar Instalación de SO"
@@ -99,10 +99,18 @@
             "RootPassword": "{{ vault_password }}",
             "Source": "Custom"
           },
-          "Image": { "Moid": "{{ os_file_resp.api_response.Results[0].Moid }}" },
-          "OsduImage": { "Moid": "{{ scu_file_resp.api_response.Results[0].Moid }}" },
-          "ConfigurationFile": { "Moid": "{{ config_file_resp.api_response.Results[0].Moid }}" },
-          "Organization": { "Moid": "{{ org_resp.api_response.Results[0].Moid }}" },
+          "Image": { 
+            "Moid": "{{ os_file_resp.api_response.Results[0].Moid }}" 
+          },
+          "OsduImage": { 
+            "Moid": "{{ scu_file_resp.api_response.Results[0].Moid }}" 
+          },
+          "ConfigurationFile": { 
+            "Moid": "{{ config_file_resp.api_response.Results[0].Moid }}" 
+          },
+          "Organization": { 
+            "Moid": "{{ org_resp.api_response.Results[0].Moid }}" 
+          },
           "Server": {
             "Moid": "{{ server_search.api_response.Results[0].SourceMoid }}",
             "ObjectType": "{{ server_search.api_response.Results[0].SourceObjectType }}"
