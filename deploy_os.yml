@@ -1,50 +1,46 @@
 ---
-- name: "Cisco Intersight - Despliegue RHEL 9.6 Producción"
+- name: "Cisco Intersight - Despliegue RHEL 9.6"
   hosts: all
   connection: local
   gather_facts: false
 
   vars:
-    # Credenciales y Conexión
+    # Credenciales inyectadas por AWX
     api_info: &api_info
       api_private_key: "{{ api_private_key | default(omit) }}"
       api_key_id: "{{ api_key_id | default(omit) }}"
       api_uri: "{{ api_uri | default('https://intersight.com') }}"
       validate_certs: true
 
-    # Variables de Imágenes (Asegúrate que estos nombres coincidan en tu Intersight)
+    # Datos extraídos de tus capturas
+    organization_name: "AI-Workloads"
+    server_name: "CX-DCC-DL2-S9108-AI-1-1-5"
     os_image_name: "Red Hat Enterprise Linux 9.6"
-    os_config_file: "RHEL96.ks"
     scu_image_name: "SCU-7.1.5.250100"
+    os_config_file: "RHEL96.ks"
     
-    # --- DATOS DE RED REALES ---
+    # Parámetros de Red Reales
     target_ip: "198.19.202.101"
     target_gateway: "198.19.202.1"
     target_netmask: "255.255.255.0"
     target_dns: "198.19.254.82"
     target_ntp: "198.19.255.137"
-    network_device: "eth1"
     target_hostname: "server01"
+    network_device: "eth1"
 
   tasks:
-    # --- BÚSQUEDA DE RECURSOS ---
-    - name: "Obtener Moid de Organización"
+    - name: "1. Obtener Moids base (Org y Servidor)"
       cisco.intersight.intersight_rest_api:
         <<: *api_info
-        resource_path: /organization/Organizations
+        resource_path: "{{ item.path }}"
         query_params:
-          $filter: "Name eq '{{ organization }}'"
-      register: org_resp
+          $filter: "Name eq '{{ item.name }}'"
+      loop:
+        - { path: '/organization/Organizations', name: '{{ organization_name }}' }
+        - { path: '/compute/PhysicalSummaries', name: '{{ server_name }}' }
+      register: base_moids
 
-    - name: "Obtener Moid del Servidor"
-      cisco.intersight.intersight_rest_api:
-        <<: *api_info
-        resource_path: /compute/PhysicalSummaries
-        query_params:
-          $filter: "Name eq '{{ server_name }}'"
-      register: server_search
-
-    - name: "Obtener Moid de Imagen SO, SCU y Config"
+    - name: "2. Obtener Moids de Software y Configuración"
       cisco.intersight.intersight_rest_api:
         <<: *api_info
         resource_path: "{{ item.path }}"
@@ -54,59 +50,62 @@
         - { path: '/softwarerepository/OperatingSystemFiles', name: '{{ os_image_name }}' }
         - { path: '/firmware/ServerConfigurationUtilityDistributables', name: '{{ scu_image_name }}' }
         - { path: '/os/ConfigurationFiles', name: '{{ os_config_file }}' }
-      register: resources_resp
+      register: software_moids
 
-    # --- DESPLIEGUE ---
-    - name: "Lanzar Instalación de SO"
+    - name: "3. Ejecutar Instalación de SO (Target MStorBootVd)"
       cisco.intersight.intersight_rest_api:
         <<: *api_info
-        resource_path: /bulk/Requests
-        update_method: post
+        resource_path: /os/Installations
+        method: POST
         api_body: {
-          "Requests": [
-            {
-              "Body": {
-                "Answers": {
-                  "Hostname": "{{ target_hostname }}",
-                  "IpConfigType": "static",
-                  "IpConfiguration": {
-                    "ObjectType": "os.Ipv4Configuration",
-                    "IpV4Config": {
-                      "Gateway": "{{ target_gateway }}",
-                      "IpAddress": "{{ target_ip }}",
-                      "Netmask": "{{ target_netmask }}"
-                    }
-                  },
-                  "Nameserver": "{{ target_dns }}",
-                  "NtpServers": ["{{ target_ntp }}"],
-                  "NetworkDevice": "{{ network_device }}",
-                  "RootPassword": "{{ vault_password }}",
-                  "Source": "Template"
-                },
-                "ConfigurationFile": { "Moid": "{{ resources_resp.results[2].api_response.Results[0].Moid }}", "ObjectType": "os.ConfigurationFile" },
-                "Image": { "Moid": "{{ resources_resp.results[0].api_response.Results[0].Moid }}", "ObjectType": "softwarerepository.OperatingSystemFile" },
-                "OsduImage": { "Moid": "{{ resources_resp.results[1].api_response.Results[0].Moid }}", "ObjectType": "firmware.ServerConfigurationUtilityDistributable" },
-                "InstallMethod": "vMedia",
-                "InstallTarget": {
-                  "Id": "0",
-                  "Name": "vd0",
-                  "ObjectType": "os.VirtualDrive",
-                  "StorageControllerSlotId": "Embedded" 
-                },
-                "Organization": { "Moid": "{{ org_resp.api_response.Results[0].Moid }}", "ObjectType": "organization.Organization" },
-                "Server": { 
-                   "Moid": "{{ server_search.api_response.Results[0].SourceMoid }}", 
-                   "ObjectType": "{{ server_search.api_response.Results[0].SourceObjectType }}" 
-                }
-              },
-              "ObjectType": "bulk.RestSubRequest"
-            }
-          ],
-          "Uri": "/v1/os/Installs",
-          "Verb": "POST"
+          "ConfigurationSource": "Custom",
+          "Description": "Despliegue via AWX - RHEL 9.6",
+          "InstallMethod": "vMedia",
+          "OverrideSecureBoot": true,
+          "Answers": {
+            "Hostname": "{{ target_hostname }}",
+            "IpConfigType": "static",
+            "IpConfiguration": {
+              "ObjectType": "os.Ipv4Configuration",
+              "IpV4Config": {
+                "Gateway": "{{ target_gateway }}",
+                "IpAddress": "{{ target_ip }}",
+                "Netmask": "{{ target_netmask }}"
+              }
+            },
+            "Nameserver": "{{ target_dns }}",
+            "NtpServers": ["{{ target_ntp }}"],
+            "NetworkDevice": "{{ network_device }}",
+            "RootPassword": "{{ vault_password }}",
+            "Source": "Custom"
+          },
+          "Image": {
+            "Moid": "{{ software_moids.results[0].api_response.Results[0].Moid }}",
+            "ObjectType": "softwarerepository.OperatingSystemFile"
+          },
+          "OsduImage": {
+            "Moid": "{{ software_moids.results[1].api_response.Results[0].Moid }}",
+            "ObjectType": "firmware.ServerConfigurationUtilityDistributable"
+          },
+          "ConfigurationFile": {
+            "Moid": "{{ software_moids.results[2].api_response.Results[0].Moid }}",
+            "ObjectType": "os.ConfigurationFile"
+          },
+          "Organization": {
+            "Moid": "{{ base_moids.results[0].api_response.Results[0].Moid }}",
+            "ObjectType": "organization.Organization"
+          },
+          "Server": {
+            "Moid": "{{ base_moids.results[1].api_response.Results[0].SourceMoid }}",
+            "ObjectType": "{{ base_moids.results[1].api_response.Results[0].SourceObjectType }}"
+          },
+          "StorageConfig": {
+            "Moid": "MStorBootVd",
+            "ObjectType": "os.VirtualDrive"
+          }
         }
-      register: install_resp
+      register: deployment_result
 
-    - name: "ID de Workflow generado"
+    - name: "Resultado"
       debug:
-        msg: "Instalación iniciada. Moid del Request: {{ install_resp.api_response.Results[0].Body.Moid }}"
+        msg: "Instalación enviada con éxito. Revisa el portal de Intersight."
