@@ -9,8 +9,7 @@
     server_name: "CX-DCC-DL2-S9108-AI-1-1-5"
     os_image_name: "Red Hat Enterprise Linux 9.6"
     scu_image_name: "SCU-7.1.5.250100"
-    os_config_file: "RHEL96_v20.ks"
-    os_catalog_moid: "6941a14c2d45bdd901da66a1"
+    os_config_file: "RHEL96_v19.ks"
 
     # Red
     target_ip: "198.19.202.101"
@@ -19,42 +18,6 @@
     target_dns: "198.19.254.82"
     target_hostname: "server01"
     network_device: "eth1"
-
-    # Kickstart content
-    ks_content: |
-      #version=RHEL9
-      text
-      cdrom
-      firstboot --enable
-      keyboard --vckeymap=us --xlayouts='us'
-      lang en_US.UTF-8
-
-      ignoredisk --only-use=sda
-      clearpart --all --initlabel --drives=sda
-      zerombr
-      autopart --type=lvm
-
-      network --bootproto=static --device={{ .NetworkDevice }} --activate --gateway={{ .Ipv4ConfigGateway }} --ip={{ .Ipv4ConfigIpAddress }} --nameserver={{ .Nameserver }} --netmask={{ .Ipv4ConfigNetmask }}
-      network --hostname={{ .Hostname }}
-
-      rootpw --iscrypted {{ .RootPassword }}
-      services --enabled="chronyd"
-      timezone America/New_York
-
-      %packages
-      @^minimal-environment
-      @development
-      @rpm-development-tools
-      @system-tools
-      %end
-
-      %addon com_redhat_kdump --disable --reserve-mb='auto'
-      %end
-
-      %post --nochroot --log=/root/ks-post.log
-      OS_INSTALL_COMPLETED_STATUS_PLACEHOLDER
-      %end
-      reboot
 
   tasks:
     - name: "1. Obtener Moid de la Organización"
@@ -97,21 +60,7 @@
           $filter: "Name eq '{{ scu_image_name }}'"
       register: scu_file_resp
 
-    - name: "5. Buscar distribución RHEL 9.6 en HCL"
-      cisco.intersight.intersight_rest_api:
-        api_private_key: "{{ api_private_key }}"
-        api_key_id: "{{ api_key_id }}"
-        api_uri: "https://intersight.com"
-        resource_path: "/api/v1/hcl/OperatingSystems"
-        query_params:
-          $filter: "Vendor eq 'Red Hat' and Version eq 'Red Hat Enterprise Linux 9.6'"
-      register: hcl_os_resp
-
-    - name: "5b. Mostrar distribución encontrada"
-      ansible.builtin.debug:
-        msg: "Distribución RHEL 9.6 Moid: {{ (hcl_os_resp.api_response.Results | default([hcl_os_resp.api_response]))[0].Moid }}"
-
-    - name: "6. Verificar si config file existe"
+    - name: "5. Obtener Moid de Configuración"
       cisco.intersight.intersight_rest_api:
         api_private_key: "{{ api_private_key }}"
         api_key_id: "{{ api_key_id }}"
@@ -119,45 +68,20 @@
         resource_path: "/api/v1/os/ConfigurationFiles"
         query_params:
           $filter: "Name eq '{{ os_config_file }}'"
-      register: config_check
-
-    - name: "7. Crear Configuration File (si no existe)"
-      cisco.intersight.intersight_rest_api:
-        api_private_key: "{{ api_private_key }}"
-        api_key_id: "{{ api_key_id }}"
-        api_uri: "https://intersight.com"
-        resource_path: "/api/v1/os/ConfigurationFiles"
-        update_method: "post"
-        api_body:
-          Name: "{{ os_config_file }}"
-          Description: "Kickstart RHEL 9.6 for AI Workloads"
-          Supported: true
-          Distributions:
-            - Moid: "{{ (hcl_os_resp.api_response.Results | default([hcl_os_resp.api_response]))[0].Moid }}"
-              ObjectType: "hcl.OperatingSystem"
-          Catalog:
-            Moid: "{{ os_catalog_moid }}"
-            ObjectType: "os.Catalog"
-          FileContent: "{{ ks_content }}"
       register: config_file_resp
-      when: config_check.api_response.Moid is not defined and (config_check.api_response.Results | default([]) | length == 0)
 
-    - name: "7b. Usar config existente si ya existe"
-      ansible.builtin.set_fact:
-        config_moid: "{{ config_file_resp.api_response.Moid | default((config_check.api_response.Results | default([config_check.api_response]))[0].Moid) }}"
-
-    - name: "8. Validar todos los Moids"
+    - name: "6. Validar Moids"
       ansible.builtin.assert:
         that:
           - org_resp.api_response.Moid is defined or (org_resp.api_response.Results | default([]) | length > 0)
           - server_search.api_response.Moid is defined or (server_search.api_response.Results | default([]) | length > 0)
           - os_file_resp.api_response.Moid is defined or (os_file_resp.api_response.Results | default([]) | length > 0)
           - scu_file_resp.api_response.Moid is defined or (scu_file_resp.api_response.Results | default([]) | length > 0)
-          - config_moid is defined
+          - config_file_resp.api_response.Moid is defined or (config_file_resp.api_response.Results | default([]) | length > 0)
         fail_msg: "No se pudieron obtener todos los Moids."
         success_msg: "Todos los Moids obtenidos correctamente."
 
-    - name: "9. Ejecutar Instalación de SO"
+    - name: "7. Ejecutar Instalación de SO"
       cisco.intersight.intersight_rest_api:
         api_private_key: "{{ api_private_key }}"
         api_key_id: "{{ api_key_id }}"
@@ -182,6 +106,61 @@
             IsRootPasswordCrypted: false
             RootPassword: "{{ vault_password }}"
             Source: "Template"
+          AdditionalParameters:
+            - ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                Name: ".NetworkDevice"
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+              Value: "{{ network_device }}"
+            - ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                Name: ".Ipv4ConfigGateway"
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+              Value: "{{ target_gateway }}"
+            - ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                Name: ".Ipv4ConfigIpAddress"
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+              Value: "{{ target_ip }}"
+            - ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                Name: ".Nameserver"
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+              Value: "{{ target_dns }}"
+            - ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                Name: ".Ipv4ConfigNetmask"
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+              Value: "{{ target_netmask }}"
+            - ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                Name: ".Hostname"
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+              Value: "{{ target_hostname }}"
           Image:
             Moid: "{{ (os_file_resp.api_response.Results | default([os_file_resp.api_response]))[0].Moid }}"
             ObjectType: "softwarerepository.OperatingSystemFile"
@@ -189,7 +168,7 @@
             Moid: "{{ (scu_file_resp.api_response.Results | default([scu_file_resp.api_response]))[0].Moid }}"
             ObjectType: "firmware.ServerConfigurationUtilityDistributable"
           ConfigurationFile:
-            Moid: "{{ config_moid }}"
+            Moid: "{{ (config_file_resp.api_response.Results | default([config_file_resp.api_response]))[0].Moid }}"
             ObjectType: "os.ConfigurationFile"
           Organization:
             Moid: "{{ (org_resp.api_response.Results | default([org_resp.api_response]))[0].Moid }}"
@@ -204,7 +183,7 @@
             ObjectType: "os.VirtualDrive"
       register: install_resp
 
-    - name: "10. Resultado"
+    - name: "8. Resultado"
       ansible.builtin.debug:
-        msg: "Instalación iniciada. Moid: {{ install_resp.api_response.Moid | default('N/A') }}"
+        msg: "Instalación iniciada exitosamente. Moid: {{ install_resp.api_response.Moid | default('N/A') }}"
       when: install_resp is succeeded
