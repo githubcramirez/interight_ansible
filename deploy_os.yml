@@ -64,7 +64,7 @@
             ObjectType: "os.VirtualDrive"
             Id: "0"
             Name: "vd0"
-            StorageControllerSlotId: "MRAID"
+            StorageControllerSlotId: "MSTOR-RAID"
           Answers:
             ClassId: "os.Answers"
             ObjectType: "os.Answers"
