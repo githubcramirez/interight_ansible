@@ -9,9 +9,8 @@
     server_name: "CX-DCC-DL2-S9108-AI-1-1-5"
     os_image_name: "Red Hat Enterprise Linux 9.6"
     scu_image_name: "SCU-7.1.5.250100"
-    # Actualizado al nuevo archivo
     os_config_file: "RHEL96_v16.ks"
-    
+
     # Red
     target_ip: "198.19.202.101"
     target_gateway: "198.19.202.1"
@@ -72,60 +71,65 @@
           $filter: "Name eq '{{ os_config_file }}'"
       register: config_file_resp
 
-    - name: "6. Ejecutar Instalación de SO"
+    - name: "6. Validar que todos los Moids fueron obtenidos"
+      ansible.builtin.assert:
+        that:
+          - org_resp.api_response.Moid is defined or (org_resp.api_response.Results | default([]) | length > 0)
+          - server_search.api_response.Moid is defined or (server_search.api_response.Results | default([]) | length > 0)
+          - os_file_resp.api_response.Moid is defined or (os_file_resp.api_response.Results | default([]) | length > 0)
+          - scu_file_resp.api_response.Moid is defined or (scu_file_resp.api_response.Results | default([]) | length > 0)
+          - config_file_resp.api_response.Moid is defined or (config_file_resp.api_response.Results | default([]) | length > 0)
+        fail_msg: "No se pudieron obtener todos los Moids necesarios. Verifica los nombres de los recursos."
+        success_msg: "Todos los Moids obtenidos correctamente."
+
+    - name: "7. Ejecutar Instalación de SO"
       cisco.intersight.intersight_rest_api:
         api_private_key: "{{ api_private_key }}"
         api_key_id: "{{ api_key_id }}"
         api_uri: "https://intersight.com"
         resource_path: "/api/v1/os/Installs"
         update_method: "post"
-        api_body: {
-          "InstallMethod": "vMedia",
-          "OverrideSecureBoot": true,
-          "Description": "Deployment via AWX",
-          "Answers": {
-            "ClassId": "os.Answers",
-            "ObjectType": "os.Answers",
-            "Hostname": "{{ target_hostname }}",
-            "IpConfigType": "static",
-            "IpConfiguration": {
-              "ClassId": "os.Ipv4Configuration",
-              "ObjectType": "os.Ipv4Configuration",
-              "Gateway": "{{ target_gateway }}",
-              "IpAddress": "{{ target_ip }}",
-              "Netmask": "{{ target_netmask }}"
-            },
-            "Nameserver": "{{ target_dns }}",
-            "NetworkDevice": "{{ network_device }}",
-            "IsRootPasswordCrypted": false,
-            "RootPassword": "{{ vault_password }}",
-            "Source": "Template"
-          },
-          "Image": { 
-            "Moid": "{{ (os_file_resp.api_response.Results | default([os_file_resp.api_response]))[0].Moid }}",
-            "ObjectType": "softwarerepository.OperatingSystemFile"
-          },
-          "OsduImage": { 
-            "Moid": "{{ (scu_file_resp.api_response.Results | default([scu_file_resp.api_response]))[0].Moid }}",
-            "ObjectType": "firmware.ServerConfigurationUtilityDistributable"
-          },
-          "ConfigurationFile": { 
-            "Moid": "{{ (config_file_resp.api_response.Results | default([config_file_resp.api_response]))[0].Moid }}",
-            "ObjectType": "os.ConfigurationFile"
-          },
-          "Organization": { 
-            "Moid": "{{ (org_resp.api_response.Results | default([org_resp.api_response]))[0].Moid }}",
-            "ObjectType": "organization.Organization"
-          },
-          "Server": {
-            "Moid": "{{ (server_search.api_response.Results | default([server_search.api_response]))[0].SourceMoid | default((server_search.api_response.Results | default([server_search.api_response]))[0].Moid) }}",
-            "ObjectType": "{{ (server_search.api_response.Results | default([server_search.api_response]))[0].SourceObjectType | default('compute.Blade') }}"
-          },
-          "InstallTarget": {
-            "Id": "0",
-            "Name": "MStorBootVd",
-            "StorageControllerSlotId": "MSTOR-RAID",
-            "ClassId": "os.VirtualDrive",
-            "ObjectType": "os.VirtualDrive"
-          }
-        }
+        api_body:
+          InstallMethod: "vMedia"
+          OverrideSecureBoot: true
+          Description: "Deployment via AWX - {{ target_hostname }}"
+          Answers:
+            ObjectType: "os.Answers"
+            Hostname: "{{ target_hostname }}"
+            IpConfigType: "static"
+            IpConfiguration:
+              ObjectType: "os.Ipv4Configuration"
+              Gateway: "{{ target_gateway }}"
+              IpAddress: "{{ target_ip }}"
+              Netmask: "{{ target_netmask }}"
+            Nameserver: "{{ target_dns }}"
+            NetworkDevice: "{{ network_device }}"
+            IsRootPasswordCrypted: false
+            RootPassword: "{{ vault_password }}"
+            Source: "Template"
+          Image:
+            Moid: "{{ (os_file_resp.api_response.Results | default([os_file_resp.api_response]))[0].Moid }}"
+            ObjectType: "softwarerepository.OperatingSystemFile"
+          OsduImage:
+            Moid: "{{ (scu_file_resp.api_response.Results | default([scu_file_resp.api_response]))[0].Moid }}"
+            ObjectType: "firmware.ServerConfigurationUtilityDistributable"
+          ConfigurationFile:
+            Moid: "{{ (config_file_resp.api_response.Results | default([config_file_resp.api_response]))[0].Moid }}"
+            ObjectType: "os.ConfigurationFile"
+          Organization:
+            Moid: "{{ (org_resp.api_response.Results | default([org_resp.api_response]))[0].Moid }}"
+            ObjectType: "organization.Organization"
+          Server:
+            Moid: "{{ (server_search.api_response.Results | default([server_search.api_response]))[0].SourceMoid | default((server_search.api_response.Results | default([server_search.api_response]))[0].Moid) }}"
+            ObjectType: "{{ (server_search.api_response.Results | default([server_search.api_response]))[0].SourceObjectType | default('compute.Blade') }}"
+          InstallTarget:
+            Id: "0"
+            Name: "MStorBootVd"
+            StorageControllerSlotId: "MSTOR-RAID"
+            ObjectType: "os.VirtualDrive"
+      register: install_resp
+
+    - name: "8. Mostrar resultado de la instalación"
+      ansible.builtin.debug:
+        msg: "Instalación iniciada exitosamente. Moid del job: {{ install_resp.api_response.Moid | default('N/A') }}"
+      when: install_resp is succeeded
