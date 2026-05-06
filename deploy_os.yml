@@ -104,7 +104,7 @@
             Nameserver: "{{ target_dns }}"
             NetworkDevice: "{{ network_device }}"
             IsRootPasswordCrypted: false
-            RootPassword: "{{ vault_password }}"
+            RootPassword: "CiscoAdmin2026"
             Source: "Template"
           Image:
             Moid: "{{ (os_file_resp.api_response.Results | default([os_file_resp.api_response]))[0].Moid }}"
