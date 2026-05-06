@@ -14,7 +14,7 @@
     server_name: "CX-DCC-DL2-S9108-AI-1-1-5"
     os_image_name: "Red Hat Enterprise Linux 9.6"
     scu_name: "SCU-7.1.5.250100"
-    config_file_name: "RHEL96.ks"
+    config_file_name: "RHEL96_v30.ks"
 
     # Target Server Configuration
     target_hostname: "server01"
@@ -197,8 +197,8 @@
             IpV4ConfigIpAddress: "{{ target_ip }}"
             IpV4ConfigNetmask: "{{ target_netmask }}"
             NameServer: "{{ target_nameserver }}"
-            RootPassword: "{{ root_password }}"
-            IsRootPasswordCrypted: true
+            RootPassword: "Cisco123!"
+            IsRootPasswordCrypted: false
             Source: "None"
           AdditionalParameters:
             - ObjectType: "os.PlaceHolder"
@@ -209,7 +209,7 @@
                 Properties:
                   ObjectType: "workflow.PrimitiveDataProperty"
                   Type: "string"
-              Value: "{{ root_password }}"
+              Value: "Cisco123!"
             - ObjectType: "os.PlaceHolder"
               IsValueSet: true
               Type:
