@@ -1,52 +1,52 @@
 ---
-- name: Deploy RHEL 9.6 via Intersight OS Install API
+- name: Cisco Intersight OS Install - RHEL 9.6
   hosts: localhost
   gather_facts: false
-  vars:
-    intersight_api_uri: "https://us-east-1.intersight.com/api/v1"
-    intersight_api_key_id: "6514bd3c7564613301ee9d9e/69d930c875646132012d5f60/69e25bb7756461320110e94d"
-    intersight_api_private_key: "{{ lookup('file', '/opt/intersight/SecretKey.txt') }}"
+  connection: local
 
-    # Pre-resolved Moids
-    server_moid: "694079a476752d350132ed67"
+  vars:
+    intersight_api_key_id: "6514bd3c7564613301ee9d9e/69d930c875646132012d5f60/69e25bb7756461320110e94d"
+    intersight_api_private_key: "{{ api_private_key }}"
+    intersight_api_uri: "https://intersight.com/api/v1"
+
+    # Resource Moids
     org_moid: "6941a14c69726532017eee83"
+    server_moid: "694079a476752d350132ed67"
     os_image_moid: "69d834db656761320134863c"
     scu_moid: "69d8350d6567613201348afd"
-    config_file_moid: "69fadca8628b5ff101f0c536"
+    config_moid: "69fadca8628b5ff101f0c536"  # RHEL96_v30.ks (plaintext password)
 
-    # Network Configuration
-    hostname: "server01"
+    # Network Parameters
+    hostname_val: "server01"
     ip_address: "198.19.202.101"
     netmask: "255.255.255.0"
     gateway: "198.19.202.1"
     dns_server: "198.19.254.82"
-    ntp_server: "198.19.255.137"
     network_device: "eth1"
     root_password: "Cisco123!"
 
   tasks:
-    - name: Initiate OS Install via Intersight API
+    - name: Trigger OS Install via Intersight API
       cisco.intersight.intersight_rest_api:
-        api_uri: "{{ intersight_api_uri }}"
         api_key_id: "{{ intersight_api_key_id }}"
         api_private_key: "{{ intersight_api_private_key }}"
+        api_uri: "{{ intersight_api_uri }}"
         resource_path: /os/Installs
-        update_method: post
+        state: present
         api_body:
+          Name: "RHEL96-Install-AWX"
           ClassId: "os.Install"
           ObjectType: "os.Install"
-          Name: "RHEL96-Deploy-server01"
-          Description: "RHEL 9.6 deployment on CX-DCC-DL2-S9108-AI-1-1-5"
           InstallMethod: "vMedia"
           OverrideSecureBoot: true
-          Server:
-            ClassId: "mo.MoRef"
-            ObjectType: "compute.Blade"
-            Moid: "{{ server_moid }}"
           Organization:
             ClassId: "mo.MoRef"
             ObjectType: "organization.Organization"
             Moid: "{{ org_moid }}"
+          Server:
+            ClassId: "mo.MoRef"
+            ObjectType: "compute.Blade"
+            Moid: "{{ server_moid }}"
           Image:
             ClassId: "mo.MoRef"
             ObjectType: "softwarerepository.OperatingSystemFile"
@@ -58,25 +58,25 @@
           ConfigurationFile:
             ClassId: "mo.MoRef"
             ObjectType: "os.ConfigurationFile"
-            Moid: "{{ config_file_moid }}"
+            Moid: "{{ config_moid }}"
+          InstallTarget:
+            ClassId: "os.VirtualDrive"
+            ObjectType: "os.VirtualDrive"
+            Id: "0"
+            Name: "vd0"
+            StorageControllerSlotId: "MRAID"
           Answers:
             ClassId: "os.Answers"
             ObjectType: "os.Answers"
             Source: "Template"
             Hostname: ""
-            IpAddress: ""
+            IpConfigType: ""
+            IpConfiguration: null
+            IsRootPasswordSet: false
+            IsRootPasswordCrypted: false
             Nameserver: ""
             NetworkDevice: ""
             RootPassword: ""
-            IsRootPasswordSet: false
-            IsRootPasswordCrypted: false
-            IpConfiguration: null
-          InstallTarget:
-            ClassId: "os.VirtualDrive"
-            ObjectType: "os.VirtualDrive"
-            Id: "0"
-            Name: "MStorBootVd"
-            StorageControllerSlotId: "MSTOR-RAID"
           AdditionalParameters:
             - ClassId: "os.PlaceHolder"
               ObjectType: "os.PlaceHolder"
@@ -84,165 +84,237 @@
               Type:
                 ClassId: "workflow.PrimitiveDataType"
                 ObjectType: "workflow.PrimitiveDataType"
-                Name: ".RootPassword"
                 Properties:
                   ClassId: "workflow.PrimitiveDataProperty"
                   ObjectType: "workflow.PrimitiveDataProperty"
-                  Type: "string"
                   Constraints:
                     ClassId: "workflow.Constraints"
                     ObjectType: "workflow.Constraints"
+                    EnumList: []
+                  Type: "string"
+                  Secure: false
               Value: "{{ root_password }}"
+              Key: ".RootPassword"
             - ClassId: "os.PlaceHolder"
               ObjectType: "os.PlaceHolder"
               IsValueSet: true
               Type:
                 ClassId: "workflow.PrimitiveDataType"
                 ObjectType: "workflow.PrimitiveDataType"
-                Name: ".Hostname"
                 Properties:
                   ClassId: "workflow.PrimitiveDataProperty"
                   ObjectType: "workflow.PrimitiveDataProperty"
-                  Type: "string"
                   Constraints:
                     ClassId: "workflow.Constraints"
                     ObjectType: "workflow.Constraints"
-              Value: "{{ hostname }}"
+                    EnumList: []
+                  Type: "string"
+                  Secure: false
+              Value: "{{ hostname_val }}"
+              Key: ".Hostname"
             - ClassId: "os.PlaceHolder"
               ObjectType: "os.PlaceHolder"
               IsValueSet: true
               Type:
                 ClassId: "workflow.PrimitiveDataType"
                 ObjectType: "workflow.PrimitiveDataType"
-                Name: ".IpAddress"
                 Properties:
                   ClassId: "workflow.PrimitiveDataProperty"
                   ObjectType: "workflow.PrimitiveDataProperty"
-                  Type: "string"
                   Constraints:
                     ClassId: "workflow.Constraints"
                     ObjectType: "workflow.Constraints"
+                    EnumList:
+                      - ClassId: "workflow.EnumEntry"
+                        ObjectType: "workflow.EnumEntry"
+                        Label: "IPv4"
+                        Value: "IPv4"
+                      - ClassId: "workflow.EnumEntry"
+                        ObjectType: "workflow.EnumEntry"
+                        Label: "IPv6"
+                        Value: "IPv6"
+                  Type: "string"
+                  Secure: false
+              Value: "IPv4"
+              Key: ".IpVersion"
+            - ClassId: "os.PlaceHolder"
+              ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ClassId: "workflow.PrimitiveDataType"
+                ObjectType: "workflow.PrimitiveDataType"
+                Properties:
+                  ClassId: "workflow.PrimitiveDataProperty"
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Constraints:
+                    ClassId: "workflow.Constraints"
+                    ObjectType: "workflow.Constraints"
+                    EnumList:
+                      - ClassId: "workflow.EnumEntry"
+                        ObjectType: "workflow.EnumEntry"
+                        Label: "static"
+                        Value: "static"
+                      - ClassId: "workflow.EnumEntry"
+                        ObjectType: "workflow.EnumEntry"
+                        Label: "DHCP"
+                        Value: "DHCP"
+                  Type: "string"
+                  Secure: false
+              Value: "static"
+              Key: ".IpConfigType"
+            - ClassId: "os.PlaceHolder"
+              ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ClassId: "workflow.PrimitiveDataType"
+                ObjectType: "workflow.PrimitiveDataType"
+                Properties:
+                  ClassId: "workflow.PrimitiveDataProperty"
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Constraints:
+                    ClassId: "workflow.Constraints"
+                    ObjectType: "workflow.Constraints"
+                    EnumList: []
+                  Type: "string"
+                  Secure: false
               Value: "{{ ip_address }}"
+              Key: ".IpV4ConfigIpAddress"
             - ClassId: "os.PlaceHolder"
               ObjectType: "os.PlaceHolder"
               IsValueSet: true
               Type:
                 ClassId: "workflow.PrimitiveDataType"
                 ObjectType: "workflow.PrimitiveDataType"
-                Name: ".Netmask"
                 Properties:
                   ClassId: "workflow.PrimitiveDataProperty"
                   ObjectType: "workflow.PrimitiveDataProperty"
-                  Type: "string"
                   Constraints:
                     ClassId: "workflow.Constraints"
                     ObjectType: "workflow.Constraints"
+                    EnumList: []
+                  Type: "string"
+                  Secure: false
               Value: "{{ netmask }}"
+              Key: ".IpV4ConfigNetmask"
             - ClassId: "os.PlaceHolder"
               ObjectType: "os.PlaceHolder"
               IsValueSet: true
               Type:
                 ClassId: "workflow.PrimitiveDataType"
                 ObjectType: "workflow.PrimitiveDataType"
-                Name: ".Gateway"
                 Properties:
                   ClassId: "workflow.PrimitiveDataProperty"
                   ObjectType: "workflow.PrimitiveDataProperty"
-                  Type: "string"
                   Constraints:
                     ClassId: "workflow.Constraints"
                     ObjectType: "workflow.Constraints"
+                    EnumList: []
+                  Type: "string"
+                  Secure: false
               Value: "{{ gateway }}"
+              Key: ".IpV4ConfigGateway"
             - ClassId: "os.PlaceHolder"
               ObjectType: "os.PlaceHolder"
               IsValueSet: true
               Type:
                 ClassId: "workflow.PrimitiveDataType"
                 ObjectType: "workflow.PrimitiveDataType"
-                Name: ".Nameserver"
                 Properties:
                   ClassId: "workflow.PrimitiveDataProperty"
                   ObjectType: "workflow.PrimitiveDataProperty"
-                  Type: "string"
                   Constraints:
                     ClassId: "workflow.Constraints"
                     ObjectType: "workflow.Constraints"
+                    EnumList: []
+                  Type: "string"
+                  Secure: false
               Value: "{{ dns_server }}"
+              Key: ".NameServer"
             - ClassId: "os.PlaceHolder"
               ObjectType: "os.PlaceHolder"
               IsValueSet: true
               Type:
                 ClassId: "workflow.PrimitiveDataType"
                 ObjectType: "workflow.PrimitiveDataType"
-                Name: ".NetworkDevice"
                 Properties:
                   ClassId: "workflow.PrimitiveDataProperty"
                   ObjectType: "workflow.PrimitiveDataProperty"
-                  Type: "string"
                   Constraints:
                     ClassId: "workflow.Constraints"
                     ObjectType: "workflow.Constraints"
+                    EnumList: []
+                  Type: "string"
+                  Secure: false
+              Value: ""
+              Key: ".AlternateNameServer"
+            - ClassId: "os.PlaceHolder"
+              ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ClassId: "workflow.PrimitiveDataType"
+                ObjectType: "workflow.PrimitiveDataType"
+                Properties:
+                  ClassId: "workflow.PrimitiveDataProperty"
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Constraints:
+                    ClassId: "workflow.Constraints"
+                    ObjectType: "workflow.Constraints"
+                    EnumList: []
+                  Type: "string"
+                  Secure: false
               Value: "{{ network_device }}"
+              Key: ".NetworkDevice"
             - ClassId: "os.PlaceHolder"
               ObjectType: "os.PlaceHolder"
               IsValueSet: true
               Type:
                 ClassId: "workflow.PrimitiveDataType"
                 ObjectType: "workflow.PrimitiveDataType"
-                Name: ".NtpServer"
                 Properties:
                   ClassId: "workflow.PrimitiveDataProperty"
                   ObjectType: "workflow.PrimitiveDataProperty"
-                  Type: "string"
                   Constraints:
                     ClassId: "workflow.Constraints"
                     ObjectType: "workflow.Constraints"
-              Value: "{{ ntp_server }}"
-            - ClassId: "os.PlaceHolder"
-              ObjectType: "os.PlaceHolder"
-              IsValueSet: true
-              Type:
-                ClassId: "workflow.PrimitiveDataType"
-                ObjectType: "workflow.PrimitiveDataType"
-                Name: ".Ipv6Address"
-                Properties:
-                  ClassId: "workflow.PrimitiveDataProperty"
-                  ObjectType: "workflow.PrimitiveDataProperty"
+                    EnumList: []
                   Type: "string"
-                  Constraints:
-                    ClassId: "workflow.Constraints"
-                    ObjectType: "workflow.Constraints"
+                  Secure: false
               Value: ""
+              Key: ".IpV6ConfigIpAddress"
             - ClassId: "os.PlaceHolder"
               ObjectType: "os.PlaceHolder"
               IsValueSet: true
               Type:
                 ClassId: "workflow.PrimitiveDataType"
                 ObjectType: "workflow.PrimitiveDataType"
-                Name: ".Ipv6Prefix"
                 Properties:
                   ClassId: "workflow.PrimitiveDataProperty"
                   ObjectType: "workflow.PrimitiveDataProperty"
-                  Type: "string"
                   Constraints:
                     ClassId: "workflow.Constraints"
                     ObjectType: "workflow.Constraints"
+                    EnumList: []
+                  Type: "string"
+                  Secure: false
               Value: ""
+              Key: ".IpV6ConfigGateway"
             - ClassId: "os.PlaceHolder"
               ObjectType: "os.PlaceHolder"
               IsValueSet: true
               Type:
                 ClassId: "workflow.PrimitiveDataType"
                 ObjectType: "workflow.PrimitiveDataType"
-                Name: ".Ipv6Gateway"
                 Properties:
                   ClassId: "workflow.PrimitiveDataProperty"
                   ObjectType: "workflow.PrimitiveDataProperty"
-                  Type: "string"
                   Constraints:
                     ClassId: "workflow.Constraints"
                     ObjectType: "workflow.Constraints"
+                    EnumList: []
+                  Type: "string"
+                  Secure: false
               Value: ""
+              Key: ".IpV6ConfigPrefix"
       register: os_install_result
 
     - name: Display OS Install Result
