@@ -9,7 +9,7 @@
     server_name: "CX-DCC-DL2-S9108-AI-1-1-5"
     os_image_name: "Red Hat Enterprise Linux 9.6"
     scu_image_name: "SCU-7.1.5.250100"
-    os_config_file: "RHEL96_v18.ks"
+    os_config_file: "RHEL96_v19.ks"
 
     # Red
     target_ip: "198.19.202.101"
@@ -19,6 +19,10 @@
     target_ntp: "198.19.255.137"
     target_hostname: "server01"
     network_device: "eth1"
+
+    # Password pre-encriptado con SHA-512
+    # Generado con: python3 -c "import crypt; print(crypt.crypt('Cisco123!', crypt.mksalt(crypt.METHOD_SHA512)))"
+    root_password_hash: "$6$rounds=4096$randomsalt$hashedpasswordhere"
 
   tasks:
     - name: "1. Obtener Moid de la Organización"
@@ -79,7 +83,7 @@
           - os_file_resp.api_response.Moid is defined or (os_file_resp.api_response.Results | default([]) | length > 0)
           - scu_file_resp.api_response.Moid is defined or (scu_file_resp.api_response.Results | default([]) | length > 0)
           - config_file_resp.api_response.Moid is defined or (config_file_resp.api_response.Results | default([]) | length > 0)
-        fail_msg: "No se pudieron obtener todos los Moids necesarios. Verifica los nombres de los recursos."
+        fail_msg: "No se pudieron obtener todos los Moids necesarios."
         success_msg: "Todos los Moids obtenidos correctamente."
 
     - name: "7. Ejecutar Instalación de SO"
@@ -104,8 +108,8 @@
               Netmask: "{{ target_netmask }}"
             Nameserver: "{{ target_dns }}"
             NetworkDevice: "{{ network_device }}"
-            IsRootPasswordCrypted: false
-            RootPassword: "{{ vault_password }}"
+            IsRootPasswordCrypted: true
+            RootPassword: "{{ root_password_hash }}"
             Source: "Template"
           Image:
             Moid: "{{ (os_file_resp.api_response.Results | default([os_file_resp.api_response]))[0].Moid }}"
@@ -131,5 +135,5 @@
 
     - name: "8. Mostrar resultado de la instalación"
       ansible.builtin.debug:
-        msg: "Instalación iniciada exitosamente. Moid del job: {{ install_resp.api_response.Moid | default('N/A') }}"
+        msg: "Instalación iniciada exitosamente. Moid: {{ install_resp.api_response.Moid | default('N/A') }}"
       when: install_resp is succeeded
