@@ -183,7 +183,7 @@
             Moid: "{{ config_file_moid }}"
             ObjectType: "os.ConfigurationFile"
           InstallTarget:
-            ObjectType: "os.VirtualDriveTarget"
+            ObjectType: "os.VirtualDrive"
             Id: "0"
             Name: "MStorBootVd"
             StorageControllerSlotId: "MSTOR-RAID"
