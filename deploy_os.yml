@@ -26,7 +26,7 @@
     nameserver: "198.19.254.82"
     hostname: "server01"
     network_device: "eth1"
-    root_password: "YourEncryptedOrPlainPasswordHere"
+    root_password: "$6$r5wVHbnCWm0W8BOW$oBrI..sXPEcaYRyXhteO9Lvf45Db8KLJBsocnvCLIkThSQfomsgYLepR30oJnuvSlmNNUmlxDnL0KXMyRIrNf1"
 
   tasks:
     - name: Create OS Install via Intersight API
