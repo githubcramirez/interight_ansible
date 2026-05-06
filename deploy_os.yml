@@ -1,189 +1,132 @@
 ---
-- name: "Cisco Intersight - Despliegue RHEL 9.6 AI-Workloads"
+- name: Despliegue de RHEL 9.6 en UCSX-210C-M7
   hosts: localhost
+  gather_facts: no
   connection: local
-  gather_facts: false
-
   vars:
-    organization_name: "AI-Workloads"
+    api_private_key: "{{ vault_api_private_key }}"
+    api_key_id: "{{ vault_api_key_id }}"
+    org_name: "AI-Workloads"  # Ajustar si es diferente
     server_name: "CX-DCC-DL2-S9108-AI-1-1-5"
-    os_image_name: "Red Hat Enterprise Linux 9.6"
-    scu_image_name: "SCU-7.1.5.250100"
-    os_config_file: "RHEL96_v19.ks"
-
-    # Red
-    target_ip: "198.19.202.101"
-    target_gateway: "198.19.202.1"
-    target_netmask: "255.255.255.0"
-    target_dns: "198.19.254.82"
+    os_image_name: "RHEL9.6"
+    scu_name: "7.1.5.250100"
+    config_file_name: "RHEL96.ks"
     target_hostname: "server01"
-    network_device: "eth1"
+    target_ip: "198.19.202.101"
+    target_netmask: "255.255.255.0"
+    target_gateway: "198.19.202.1"
+    target_network_device: "eth1"
+    target_nameserver: "198.19.254.82"
 
   tasks:
-    - name: "1. Obtener Moid de la Organización"
+    - name: 1. Obtener Moid de la Organización
       cisco.intersight.intersight_rest_api:
         api_private_key: "{{ api_private_key }}"
         api_key_id: "{{ api_key_id }}"
-        api_uri: "https://intersight.com"
         resource_path: "/api/v1/organization/Organizations"
         query_params:
-          $filter: "Name eq '{{ organization_name }}'"
-      register: org_resp
+          $filter: "Name eq '{{ org_name }}'"
+      register: org_result
 
-    - name: "2. Obtener Moid del Servidor"
+    - name: Set org_moid
+      set_fact:
+        org_moid: "{{ org_result.api_response.Moid }}"
+
+    - name: 2. Obtener Moid del Servidor
       cisco.intersight.intersight_rest_api:
         api_private_key: "{{ api_private_key }}"
         api_key_id: "{{ api_key_id }}"
-        api_uri: "https://intersight.com"
-        resource_path: "/api/v1/compute/PhysicalSummaries"
+        resource_path: "/api/v1/compute/Blades"
         query_params:
           $filter: "Name eq '{{ server_name }}'"
-      register: server_search
+      register: server_result
 
-    - name: "3. Obtener Moid de Imagen SO"
+    - name: Set server_moid
+      set_fact:
+        server_moid: "{{ server_result.api_response.Moid }}"
+
+    - name: 3. Obtener Moid de la Imagen OS
       cisco.intersight.intersight_rest_api:
         api_private_key: "{{ api_private_key }}"
         api_key_id: "{{ api_key_id }}"
-        api_uri: "https://intersight.com"
         resource_path: "/api/v1/softwarerepository/OperatingSystemFiles"
         query_params:
           $filter: "Name eq '{{ os_image_name }}'"
-      register: os_file_resp
+      register: os_image_result
 
-    - name: "4. Obtener Moid de SCU"
+    - name: Set os_image_moid
+      set_fact:
+        os_image_moid: "{{ os_image_result.api_response.Moid }}"
+
+    - name: 4. Obtener Moid del SCU
       cisco.intersight.intersight_rest_api:
         api_private_key: "{{ api_private_key }}"
         api_key_id: "{{ api_key_id }}"
-        api_uri: "https://intersight.com"
         resource_path: "/api/v1/firmware/ServerConfigurationUtilityDistributables"
         query_params:
-          $filter: "Name eq '{{ scu_image_name }}'"
-      register: scu_file_resp
+          $filter: "Name eq '{{ scu_name }}'"
+      register: scu_result
 
-    - name: "5. Obtener Moid de Configuración"
+    - name: Set scu_moid
+      set_fact:
+        scu_moid: "{{ scu_result.api_response.Moid }}"
+
+    - name: 5. Obtener Moid del Configuration File
       cisco.intersight.intersight_rest_api:
         api_private_key: "{{ api_private_key }}"
         api_key_id: "{{ api_key_id }}"
-        api_uri: "https://intersight.com"
         resource_path: "/api/v1/os/ConfigurationFiles"
         query_params:
-          $filter: "Name eq '{{ os_config_file }}'"
-      register: config_file_resp
+          $filter: "Name eq '{{ config_file_name }}'"
+      register: config_file_result
 
-    - name: "6. Validar Moids"
-      ansible.builtin.assert:
-        that:
-          - org_resp.api_response.Moid is defined or (org_resp.api_response.Results | default([]) | length > 0)
-          - server_search.api_response.Moid is defined or (server_search.api_response.Results | default([]) | length > 0)
-          - os_file_resp.api_response.Moid is defined or (os_file_resp.api_response.Results | default([]) | length > 0)
-          - scu_file_resp.api_response.Moid is defined or (scu_file_resp.api_response.Results | default([]) | length > 0)
-          - config_file_resp.api_response.Moid is defined or (config_file_resp.api_response.Results | default([]) | length > 0)
-        fail_msg: "No se pudieron obtener todos los Moids."
-        success_msg: "Todos los Moids obtenidos correctamente."
+    - name: Set config_file_moid
+      set_fact:
+        config_file_moid: "{{ config_file_result.api_response.Moid }}"
 
-    - name: "7. Ejecutar Instalación de SO"
+    - name: 6. Ejecutar Instalación de SO
       cisco.intersight.intersight_rest_api:
         api_private_key: "{{ api_private_key }}"
         api_key_id: "{{ api_key_id }}"
-        api_uri: "https://intersight.com"
         resource_path: "/api/v1/os/Installs"
         update_method: "post"
         api_body:
-          InstallMethod: "vMedia"
-          OverrideSecureBoot: true
-          Description: "Deployment via AWX - {{ target_hostname }}"
-          Answers:
-            ObjectType: "os.Answers"
-            Hostname: "{{ target_hostname }}"
-            IpConfigType: "static"
-            IpConfiguration:
-              ObjectType: "os.Ipv4Configuration"
-              Gateway: "{{ target_gateway }}"
-              IpAddress: "{{ target_ip }}"
-              Netmask: "{{ target_netmask }}"
-            Nameserver: "{{ target_dns }}"
-            NetworkDevice: "{{ network_device }}"
-            IsRootPasswordCrypted: false
-            RootPassword: "{{ vault_password }}"
-            Source: "Template"
-          AdditionalParameters:
-            - ObjectType: "os.PlaceHolder"
-              IsValueSet: true
-              Type:
-                ObjectType: "workflow.PrimitiveDataType"
-                Name: ".NetworkDevice"
-                Properties:
-                  ObjectType: "workflow.PrimitiveDataProperty"
-                  Type: "string"
-              Value: "{{ network_device }}"
-            - ObjectType: "os.PlaceHolder"
-              IsValueSet: true
-              Type:
-                ObjectType: "workflow.PrimitiveDataType"
-                Name: ".Ipv4ConfigGateway"
-                Properties:
-                  ObjectType: "workflow.PrimitiveDataProperty"
-                  Type: "string"
-              Value: "{{ target_gateway }}"
-            - ObjectType: "os.PlaceHolder"
-              IsValueSet: true
-              Type:
-                ObjectType: "workflow.PrimitiveDataType"
-                Name: ".Ipv4ConfigIpAddress"
-                Properties:
-                  ObjectType: "workflow.PrimitiveDataProperty"
-                  Type: "string"
-              Value: "{{ target_ip }}"
-            - ObjectType: "os.PlaceHolder"
-              IsValueSet: true
-              Type:
-                ObjectType: "workflow.PrimitiveDataType"
-                Name: ".Nameserver"
-                Properties:
-                  ObjectType: "workflow.PrimitiveDataProperty"
-                  Type: "string"
-              Value: "{{ target_dns }}"
-            - ObjectType: "os.PlaceHolder"
-              IsValueSet: true
-              Type:
-                ObjectType: "workflow.PrimitiveDataType"
-                Name: ".Ipv4ConfigNetmask"
-                Properties:
-                  ObjectType: "workflow.PrimitiveDataProperty"
-                  Type: "string"
-              Value: "{{ target_netmask }}"
-            - ObjectType: "os.PlaceHolder"
-              IsValueSet: true
-              Type:
-                ObjectType: "workflow.PrimitiveDataType"
-                Name: ".Hostname"
-                Properties:
-                  ObjectType: "workflow.PrimitiveDataProperty"
-                  Type: "string"
-              Value: "{{ target_hostname }}"
-          Image:
-            Moid: "{{ (os_file_resp.api_response.Results | default([os_file_resp.api_response]))[0].Moid }}"
-            ObjectType: "softwarerepository.OperatingSystemFile"
-          OsduImage:
-            Moid: "{{ (scu_file_resp.api_response.Results | default([scu_file_resp.api_response]))[0].Moid }}"
-            ObjectType: "firmware.ServerConfigurationUtilityDistributable"
-          ConfigurationFile:
-            Moid: "{{ (config_file_resp.api_response.Results | default([config_file_resp.api_response]))[0].Moid }}"
-            ObjectType: "os.ConfigurationFile"
+          Name: "RHEL96-Install-{{ target_hostname }}"
           Organization:
-            Moid: "{{ (org_resp.api_response.Results | default([org_resp.api_response]))[0].Moid }}"
+            Moid: "{{ org_moid }}"
             ObjectType: "organization.Organization"
           Server:
-            Moid: "{{ (server_search.api_response.Results | default([server_search.api_response]))[0].SourceMoid | default((server_search.api_response.Results | default([server_search.api_response]))[0].Moid) }}"
-            ObjectType: "{{ (server_search.api_response.Results | default([server_search.api_response]))[0].SourceObjectType | default('compute.Blade') }}"
+            Moid: "{{ server_moid }}"
+            ObjectType: "compute.Blade"
+          Image:
+            Moid: "{{ os_image_moid }}"
+            ObjectType: "softwarerepository.OperatingSystemFile"
+          OsduImage:
+            Moid: "{{ scu_moid }}"
+            ObjectType: "firmware.ServerConfigurationUtilityDistributable"
+          ConfigurationFile:
+            Moid: "{{ config_file_moid }}"
+            ObjectType: "os.ConfigurationFile"
           InstallTarget:
+            ObjectType: "os.VirtualDriveTarget"
             Id: "0"
             Name: "MStorBootVd"
             StorageControllerSlotId: "MSTOR-RAID"
-            ObjectType: "os.VirtualDrive"
-      register: install_resp
+          Answers:
+            ObjectType: "os.Answers"
+            Hostname: "{{ target_hostname }}"
+            IpVersion: "V4"
+            IpConfigType: "static"
+            NetworkDevice: "{{ target_network_device }}"
+            IpV4ConfigGateway: "{{ target_gateway }}"
+            IpV4ConfigIpAddress: "{{ target_ip }}"
+            IpV4ConfigNetmask: "{{ target_netmask }}"
+            NameServer: "{{ target_nameserver }}"
+            RootPassword: "{{ vault_password }}"
+            IsRootPasswordCrypted: true
+            Source: "Template"
+      register: os_install_result
 
-    - name: "8. Resultado"
-      ansible.builtin.debug:
-        msg: "Instalación iniciada exitosamente. Moid: {{ install_resp.api_response.Moid | default('N/A') }}"
-      when: install_resp is succeeded
+    - name: 7. Mostrar resultado
+      debug:
+        msg: "Instalación iniciada. Moid: {{ os_install_result.api_response.Moid }}"
