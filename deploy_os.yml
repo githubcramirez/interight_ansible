@@ -12,8 +12,8 @@
     # Intersight Resources
     org_name: "AI-Workloads"
     server_name: "CX-DCC-DL2-S9108-AI-1-1-5"
-    os_image_name: "RHEL9.6"
-    scu_name: "7.1.5.250100"
+    os_image_name: "Red Hat Enterprise Linux 9.6"
+    scu_name: "SCU-7.1.5.250100"
     config_file_name: "RHEL96.ks"
 
     # Target Server Configuration
