@@ -200,6 +200,124 @@
             RootPassword: "{{ root_password }}"
             IsRootPasswordCrypted: true
             Source: "Template"
+          AdditionalParameters:
+            - ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                Name: ".RootPassword"
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+              Value: "{{ root_password }}"
+            - ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                Name: ".IpVersion"
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+              Value: "V4"
+            - ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                Name: ".IpConfigType"
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+              Value: "static"
+            - ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                Name: ".NetworkDevice"
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+              Value: "{{ target_network_device }}"
+            - ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                Name: ".IpV4ConfigGateway"
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+              Value: "{{ target_gateway }}"
+            - ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                Name: ".IpV4ConfigIpAddress"
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+              Value: "{{ target_ip }}"
+            - ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                Name: ".IpV4ConfigNetmask"
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+              Value: "{{ target_netmask }}"
+            - ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                Name: ".NameServer"
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+              Value: "{{ target_nameserver }}"
+            - ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                Name: ".Hostname"
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+              Value: "{{ target_hostname }}"
+            - ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                Name: ".AlternateNameServer"
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+              Value: ""
+            - ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                Name: ".IpV6ConfigIpAddress"
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+              Value: ""
+            - ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                Name: ".IpV6ConfigGateway"
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+              Value: ""
+            - ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                Name: ".IpV6ConfigPrefix"
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+              Value: ""
       register: os_install_result
 
     # =========================================================
