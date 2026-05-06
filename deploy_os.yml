@@ -1,16 +1,22 @@
 ---
-- name: Despliegue de RHEL 9.6 en UCSX-210C-M7
+- name: Despliegue de RHEL 9.6 en Cisco UCSX-210C-M7 via Intersight
   hosts: localhost
   gather_facts: no
   connection: local
+
   vars:
-    api_private_key: "{{ vault_api_private_key }}"
-    api_key_id: "{{ vault_api_key_id }}"
-    org_name: "AI-Workloads"  # Ajustar si es diferente
+    # Intersight API Credentials (desde AWX Vault)
+    api_private_key: "{{ api_private_key }}"
+    api_key_id: "{{ api_key_id }}"
+
+    # Intersight Resources
+    org_name: "AI-Workloads"
     server_name: "CX-DCC-DL2-S9108-AI-1-1-5"
     os_image_name: "RHEL9.6"
     scu_name: "7.1.5.250100"
     config_file_name: "RHEL96.ks"
+
+    # Target Server Configuration
     target_hostname: "server01"
     target_ip: "198.19.202.101"
     target_netmask: "255.255.255.0"
@@ -18,7 +24,14 @@
     target_network_device: "eth1"
     target_nameserver: "198.19.254.82"
 
+    # Password (SHA-512 hash desde AWX Vault)
+    root_password: "{{ vault_password }}"
+
   tasks:
+    # =========================================================
+    # FASE 1: Obtener Moids de los recursos en Intersight
+    # =========================================================
+
     - name: 1. Obtener Moid de la Organización
       cisco.intersight.intersight_rest_api:
         api_private_key: "{{ api_private_key }}"
@@ -28,9 +41,21 @@
           $filter: "Name eq '{{ org_name }}'"
       register: org_result
 
+    - name: Validar Organización
+      assert:
+        that:
+          - org_result.api_response.Moid is defined
+        fail_msg: "ERROR: No se encontró la organización '{{ org_name }}'"
+
     - name: Set org_moid
       set_fact:
         org_moid: "{{ org_result.api_response.Moid }}"
+
+    - name: "DEBUG - Organización: {{ org_name }}"
+      debug:
+        msg: "Moid: {{ org_moid }}"
+
+    # ---------------------------------------------------------
 
     - name: 2. Obtener Moid del Servidor
       cisco.intersight.intersight_rest_api:
@@ -41,9 +66,21 @@
           $filter: "Name eq '{{ server_name }}'"
       register: server_result
 
+    - name: Validar Servidor
+      assert:
+        that:
+          - server_result.api_response.Moid is defined
+        fail_msg: "ERROR: No se encontró el servidor '{{ server_name }}'"
+
     - name: Set server_moid
       set_fact:
         server_moid: "{{ server_result.api_response.Moid }}"
+
+    - name: "DEBUG - Servidor: {{ server_name }}"
+      debug:
+        msg: "Moid: {{ server_moid }}"
+
+    # ---------------------------------------------------------
 
     - name: 3. Obtener Moid de la Imagen OS
       cisco.intersight.intersight_rest_api:
@@ -54,9 +91,21 @@
           $filter: "Name eq '{{ os_image_name }}'"
       register: os_image_result
 
+    - name: Validar Imagen OS
+      assert:
+        that:
+          - os_image_result.api_response.Moid is defined
+        fail_msg: "ERROR: No se encontró la imagen '{{ os_image_name }}'"
+
     - name: Set os_image_moid
       set_fact:
         os_image_moid: "{{ os_image_result.api_response.Moid }}"
+
+    - name: "DEBUG - Imagen OS: {{ os_image_name }}"
+      debug:
+        msg: "Moid: {{ os_image_moid }}"
+
+    # ---------------------------------------------------------
 
     - name: 4. Obtener Moid del SCU
       cisco.intersight.intersight_rest_api:
@@ -67,9 +116,21 @@
           $filter: "Name eq '{{ scu_name }}'"
       register: scu_result
 
+    - name: Validar SCU
+      assert:
+        that:
+          - scu_result.api_response.Moid is defined
+        fail_msg: "ERROR: No se encontró el SCU '{{ scu_name }}'"
+
     - name: Set scu_moid
       set_fact:
         scu_moid: "{{ scu_result.api_response.Moid }}"
+
+    - name: "DEBUG - SCU: {{ scu_name }}"
+      debug:
+        msg: "Moid: {{ scu_moid }}"
+
+    # ---------------------------------------------------------
 
     - name: 5. Obtener Moid del Configuration File
       cisco.intersight.intersight_rest_api:
@@ -80,9 +141,23 @@
           $filter: "Name eq '{{ config_file_name }}'"
       register: config_file_result
 
+    - name: Validar Configuration File
+      assert:
+        that:
+          - config_file_result.api_response.Moid is defined
+        fail_msg: "ERROR: No se encontró el archivo de configuración '{{ config_file_name }}'"
+
     - name: Set config_file_moid
       set_fact:
         config_file_moid: "{{ config_file_result.api_response.Moid }}"
+
+    - name: "DEBUG - Configuration File: {{ config_file_name }}"
+      debug:
+        msg: "Moid: {{ config_file_moid }}"
+
+    # =========================================================
+    # FASE 2: Ejecutar la Instalación del SO
+    # =========================================================
 
     - name: 6. Ejecutar Instalación de SO
       cisco.intersight.intersight_rest_api:
@@ -122,11 +197,27 @@
             IpV4ConfigIpAddress: "{{ target_ip }}"
             IpV4ConfigNetmask: "{{ target_netmask }}"
             NameServer: "{{ target_nameserver }}"
-            RootPassword: "{{ vault_password }}"
+            RootPassword: "{{ root_password }}"
             IsRootPasswordCrypted: true
             Source: "Template"
       register: os_install_result
 
-    - name: 7. Mostrar resultado
+    # =========================================================
+    # FASE 3: Resultado
+    # =========================================================
+
+    - name: 7. Mostrar resultado de la instalación
       debug:
-        msg: "Instalación iniciada. Moid: {{ os_install_result.api_response.Moid }}"
+        msg: |
+          ============================================
+          INSTALACIÓN INICIADA EXITOSAMENTE
+          ============================================
+          Install Moid: {{ os_install_result.api_response.Moid }}
+          Servidor: {{ server_name }}
+          Hostname: {{ target_hostname }}
+          IP: {{ target_ip }}
+          Imagen: {{ os_image_name }}
+          ============================================
+          Monitorea el progreso en Intersight GUI:
+          Operate > OS Install
+          ============================================
