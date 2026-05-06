@@ -5,9 +5,9 @@
   connection: local
 
   vars:
-    # Intersight API Credentials (desde AWX Vault)
-    api_private_key: "{{ api_private_key }}"
-    api_key_id: "{{ api_key_id }}"
+    # Intersight API Credentials (desde AWX Vault/Credentials)
+    api_private_key: "{{ vault_api_private_key }}"
+    api_key_id: "{{ vault_api_key_id }}"
 
     # Intersight Resources
     org_name: "AI-Workloads"
@@ -32,26 +32,26 @@
     # FASE 1: Obtener Moids de los recursos en Intersight
     # =========================================================
 
-    - name: 1. Obtener Moid de la Organización
+    - name: 1. Obtener Moid de la Organizacion
       cisco.intersight.intersight_rest_api:
         api_private_key: "{{ api_private_key }}"
         api_key_id: "{{ api_key_id }}"
-        resource_path: "/api/v1/organization/Organizations"
+        resource_path: "/organization/Organizations"
         query_params:
           $filter: "Name eq '{{ org_name }}'"
       register: org_result
 
-    - name: Validar Organización
+    - name: Validar Organizacion
       assert:
         that:
           - org_result.api_response.Moid is defined
-        fail_msg: "ERROR: No se encontró la organización '{{ org_name }}'"
+        fail_msg: "ERROR: No se encontro la organizacion '{{ org_name }}'"
 
     - name: Set org_moid
       set_fact:
         org_moid: "{{ org_result.api_response.Moid }}"
 
-    - name: "DEBUG - Organización: {{ org_name }}"
+    - name: "DEBUG - Organizacion: {{ org_name }}"
       debug:
         msg: "Moid: {{ org_moid }}"
 
@@ -61,7 +61,7 @@
       cisco.intersight.intersight_rest_api:
         api_private_key: "{{ api_private_key }}"
         api_key_id: "{{ api_key_id }}"
-        resource_path: "/api/v1/compute/Blades"
+        resource_path: "/compute/Blades"
         query_params:
           $filter: "Name eq '{{ server_name }}'"
       register: server_result
@@ -70,7 +70,7 @@
       assert:
         that:
           - server_result.api_response.Moid is defined
-        fail_msg: "ERROR: No se encontró el servidor '{{ server_name }}'"
+        fail_msg: "ERROR: No se encontro el servidor '{{ server_name }}'"
 
     - name: Set server_moid
       set_fact:
@@ -86,7 +86,7 @@
       cisco.intersight.intersight_rest_api:
         api_private_key: "{{ api_private_key }}"
         api_key_id: "{{ api_key_id }}"
-        resource_path: "/api/v1/softwarerepository/OperatingSystemFiles"
+        resource_path: "/softwarerepository/OperatingSystemFiles"
         query_params:
           $filter: "Name eq '{{ os_image_name }}'"
       register: os_image_result
@@ -95,7 +95,7 @@
       assert:
         that:
           - os_image_result.api_response.Moid is defined
-        fail_msg: "ERROR: No se encontró la imagen '{{ os_image_name }}'"
+        fail_msg: "ERROR: No se encontro la imagen '{{ os_image_name }}'"
 
     - name: Set os_image_moid
       set_fact:
@@ -111,7 +111,7 @@
       cisco.intersight.intersight_rest_api:
         api_private_key: "{{ api_private_key }}"
         api_key_id: "{{ api_key_id }}"
-        resource_path: "/api/v1/firmware/ServerConfigurationUtilityDistributables"
+        resource_path: "/firmware/ServerConfigurationUtilityDistributables"
         query_params:
           $filter: "Name eq '{{ scu_name }}'"
       register: scu_result
@@ -120,7 +120,7 @@
       assert:
         that:
           - scu_result.api_response.Moid is defined
-        fail_msg: "ERROR: No se encontró el SCU '{{ scu_name }}'"
+        fail_msg: "ERROR: No se encontro el SCU '{{ scu_name }}'"
 
     - name: Set scu_moid
       set_fact:
@@ -136,7 +136,7 @@
       cisco.intersight.intersight_rest_api:
         api_private_key: "{{ api_private_key }}"
         api_key_id: "{{ api_key_id }}"
-        resource_path: "/api/v1/os/ConfigurationFiles"
+        resource_path: "/os/ConfigurationFiles"
         query_params:
           $filter: "Name eq '{{ config_file_name }}'"
       register: config_file_result
@@ -145,7 +145,7 @@
       assert:
         that:
           - config_file_result.api_response.Moid is defined
-        fail_msg: "ERROR: No se encontró el archivo de configuración '{{ config_file_name }}'"
+        fail_msg: "ERROR: No se encontro el archivo de configuracion '{{ config_file_name }}'"
 
     - name: Set config_file_moid
       set_fact:
@@ -156,14 +156,14 @@
         msg: "Moid: {{ config_file_moid }}"
 
     # =========================================================
-    # FASE 2: Ejecutar la Instalación del SO
+    # FASE 2: Ejecutar la Instalacion del SO
     # =========================================================
 
-    - name: 6. Ejecutar Instalación de SO
+    - name: 6. Ejecutar Instalacion de SO
       cisco.intersight.intersight_rest_api:
         api_private_key: "{{ api_private_key }}"
         api_key_id: "{{ api_key_id }}"
-        resource_path: "/api/v1/os/Installs"
+        resource_path: "/os/Installs"
         update_method: "post"
         api_body:
           Name: "RHEL96-Install-{{ target_hostname }}"
@@ -206,11 +206,11 @@
     # FASE 3: Resultado
     # =========================================================
 
-    - name: 7. Mostrar resultado de la instalación
+    - name: 7. Mostrar resultado de la instalacion
       debug:
         msg: |
           ============================================
-          INSTALACIÓN INICIADA EXITOSAMENTE
+          INSTALACION INICIADA EXITOSAMENTE
           ============================================
           Install Moid: {{ os_install_result.api_response.Moid }}
           Servidor: {{ server_name }}
