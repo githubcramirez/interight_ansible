@@ -22,7 +22,7 @@
 
     # Password pre-encriptado con SHA-512
     # Generado con: python3 -c "import crypt; print(crypt.crypt('Cisco123!', crypt.mksalt(crypt.METHOD_SHA512)))"
-    root_password_hash: "$6$rounds=4096$randomsalt$hashedpasswordhere"
+    root_password_hash: "$6.mBE4nvPrmw"
 
   tasks:
     - name: "1. Obtener Moid de la Organización"
