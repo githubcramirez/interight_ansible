@@ -1,341 +1,250 @@
 ---
-- name: Despliegue de RHEL 9.6 en Cisco UCSX-210C-M7 via Intersight
+- name: Deploy RHEL 9.6 via Intersight OS Install API
   hosts: localhost
-  gather_facts: no
-  connection: local
-
+  gather_facts: false
   vars:
-    # Intersight API Credentials (desde AWX Vault/Credentials)
-    api_private_key: "{{ vault_api_private_key }}"
-    api_key_id: "{{ vault_api_key_id }}"
+    intersight_api_uri: "https://us-east-1.intersight.com/api/v1"
+    intersight_api_key_id: "6514bd3c7564613301ee9d9e/69d930c875646132012d5f60/69e25bb7756461320110e94d"
+    intersight_api_private_key: "{{ lookup('file', '/opt/intersight/SecretKey.txt') }}"
 
-    # Intersight Resources
-    org_name: "AI-Workloads"
-    server_name: "CX-DCC-DL2-S9108-AI-1-1-5"
-    os_image_name: "Red Hat Enterprise Linux 9.6"
-    scu_name: "SCU-7.1.5.250100"
-    config_file_name: "RHEL96_v30.ks"
+    # Pre-resolved Moids
+    server_moid: "694079a476752d350132ed67"
+    org_moid: "6941a14c69726532017eee83"
+    os_image_moid: "69d834db656761320134863c"
+    scu_moid: "69d8350d6567613201348afd"
+    config_file_moid: "69fadca8628b5ff101f0c536"
 
-    # Target Server Configuration
-    target_hostname: "server01"
-    target_ip: "198.19.202.101"
-    target_netmask: "255.255.255.0"
-    target_gateway: "198.19.202.1"
-    target_network_device: "eth1"
-    target_nameserver: "198.19.254.82"
-
-    # Password (SHA-512 hash desde AWX Vault)
-    root_password: "{{ vault_password }}"
+    # Network Configuration
+    hostname: "server01"
+    ip_address: "198.19.202.101"
+    netmask: "255.255.255.0"
+    gateway: "198.19.202.1"
+    dns_server: "198.19.254.82"
+    ntp_server: "198.19.255.137"
+    network_device: "eth1"
+    root_password: "Cisco123!"
 
   tasks:
-    # =========================================================
-    # FASE 1: Obtener Moids de los recursos en Intersight
-    # =========================================================
-
-    - name: 1. Obtener Moid de la Organizacion
+    - name: Initiate OS Install via Intersight API
       cisco.intersight.intersight_rest_api:
-        api_private_key: "{{ api_private_key }}"
-        api_key_id: "{{ api_key_id }}"
-        resource_path: "/organization/Organizations"
-        query_params:
-          $filter: "Name eq '{{ org_name }}'"
-      register: org_result
-
-    - name: Validar Organizacion
-      assert:
-        that:
-          - org_result.api_response.Moid is defined
-        fail_msg: "ERROR: No se encontro la organizacion '{{ org_name }}'"
-
-    - name: Set org_moid
-      set_fact:
-        org_moid: "{{ org_result.api_response.Moid }}"
-
-    - name: "DEBUG - Organizacion: {{ org_name }}"
-      debug:
-        msg: "Moid: {{ org_moid }}"
-
-    # ---------------------------------------------------------
-
-    - name: 2. Obtener Moid del Servidor
-      cisco.intersight.intersight_rest_api:
-        api_private_key: "{{ api_private_key }}"
-        api_key_id: "{{ api_key_id }}"
-        resource_path: "/compute/Blades"
-        query_params:
-          $filter: "Name eq '{{ server_name }}'"
-      register: server_result
-
-    - name: Validar Servidor
-      assert:
-        that:
-          - server_result.api_response.Moid is defined
-        fail_msg: "ERROR: No se encontro el servidor '{{ server_name }}'"
-
-    - name: Set server_moid
-      set_fact:
-        server_moid: "{{ server_result.api_response.Moid }}"
-
-    - name: "DEBUG - Servidor: {{ server_name }}"
-      debug:
-        msg: "Moid: {{ server_moid }}"
-
-    # ---------------------------------------------------------
-
-    - name: 3. Obtener Moid de la Imagen OS
-      cisco.intersight.intersight_rest_api:
-        api_private_key: "{{ api_private_key }}"
-        api_key_id: "{{ api_key_id }}"
-        resource_path: "/softwarerepository/OperatingSystemFiles"
-        query_params:
-          $filter: "Name eq '{{ os_image_name }}'"
-      register: os_image_result
-
-    - name: Validar Imagen OS
-      assert:
-        that:
-          - os_image_result.api_response.Moid is defined
-        fail_msg: "ERROR: No se encontro la imagen '{{ os_image_name }}'"
-
-    - name: Set os_image_moid
-      set_fact:
-        os_image_moid: "{{ os_image_result.api_response.Moid }}"
-
-    - name: "DEBUG - Imagen OS: {{ os_image_name }}"
-      debug:
-        msg: "Moid: {{ os_image_moid }}"
-
-    # ---------------------------------------------------------
-
-    - name: 4. Obtener Moid del SCU
-      cisco.intersight.intersight_rest_api:
-        api_private_key: "{{ api_private_key }}"
-        api_key_id: "{{ api_key_id }}"
-        resource_path: "/firmware/ServerConfigurationUtilityDistributables"
-        query_params:
-          $filter: "Name eq '{{ scu_name }}'"
-      register: scu_result
-
-    - name: Validar SCU
-      assert:
-        that:
-          - scu_result.api_response.Moid is defined
-        fail_msg: "ERROR: No se encontro el SCU '{{ scu_name }}'"
-
-    - name: Set scu_moid
-      set_fact:
-        scu_moid: "{{ scu_result.api_response.Moid }}"
-
-    - name: "DEBUG - SCU: {{ scu_name }}"
-      debug:
-        msg: "Moid: {{ scu_moid }}"
-
-    # ---------------------------------------------------------
-
-    - name: 5. Obtener Moid del Configuration File
-      cisco.intersight.intersight_rest_api:
-        api_private_key: "{{ api_private_key }}"
-        api_key_id: "{{ api_key_id }}"
-        resource_path: "/os/ConfigurationFiles"
-        query_params:
-          $filter: "Name eq '{{ config_file_name }}'"
-      register: config_file_result
-
-    - name: Validar Configuration File
-      assert:
-        that:
-          - config_file_result.api_response.Moid is defined
-        fail_msg: "ERROR: No se encontro el archivo de configuracion '{{ config_file_name }}'"
-
-    - name: Set config_file_moid
-      set_fact:
-        config_file_moid: "{{ config_file_result.api_response.Moid }}"
-
-    - name: "DEBUG - Configuration File: {{ config_file_name }}"
-      debug:
-        msg: "Moid: {{ config_file_moid }}"
-
-    # =========================================================
-    # FASE 2: Ejecutar la Instalacion del SO
-    # =========================================================
-
-    - name: 6. Ejecutar Instalacion de SO
-      cisco.intersight.intersight_rest_api:
-        api_private_key: "{{ api_private_key }}"
-        api_key_id: "{{ api_key_id }}"
-        resource_path: "/os/Installs"
-        update_method: "post"
+        api_uri: "{{ intersight_api_uri }}"
+        api_key_id: "{{ intersight_api_key_id }}"
+        api_private_key: "{{ intersight_api_private_key }}"
+        resource_path: /os/Installs
+        update_method: post
         api_body:
-          Name: "RHEL96-Install-{{ target_hostname }}"
-          Organization:
-            Moid: "{{ org_moid }}"
-            ObjectType: "organization.Organization"
+          ClassId: "os.Install"
+          ObjectType: "os.Install"
+          Name: "RHEL96-Deploy-server01"
+          Description: "RHEL 9.6 deployment on CX-DCC-DL2-S9108-AI-1-1-5"
+          InstallMethod: "vMedia"
+          OverrideSecureBoot: true
           Server:
-            Moid: "{{ server_moid }}"
+            ClassId: "mo.MoRef"
             ObjectType: "compute.Blade"
+            Moid: "{{ server_moid }}"
+          Organization:
+            ClassId: "mo.MoRef"
+            ObjectType: "organization.Organization"
+            Moid: "{{ org_moid }}"
           Image:
-            Moid: "{{ os_image_moid }}"
+            ClassId: "mo.MoRef"
             ObjectType: "softwarerepository.OperatingSystemFile"
+            Moid: "{{ os_image_moid }}"
           OsduImage:
-            Moid: "{{ scu_moid }}"
+            ClassId: "mo.MoRef"
             ObjectType: "firmware.ServerConfigurationUtilityDistributable"
+            Moid: "{{ scu_moid }}"
           ConfigurationFile:
-            Moid: "{{ config_file_moid }}"
+            ClassId: "mo.MoRef"
             ObjectType: "os.ConfigurationFile"
+            Moid: "{{ config_file_moid }}"
+          Answers:
+            ClassId: "os.Answers"
+            ObjectType: "os.Answers"
+            Source: "Template"
+            Hostname: ""
+            IpAddress: ""
+            Nameserver: ""
+            NetworkDevice: ""
+            RootPassword: ""
+            IsRootPasswordSet: false
+            IsRootPasswordCrypted: false
+            IpConfiguration: null
           InstallTarget:
+            ClassId: "os.VirtualDrive"
             ObjectType: "os.VirtualDrive"
             Id: "0"
             Name: "MStorBootVd"
             StorageControllerSlotId: "MSTOR-RAID"
-          Answers:
-            ObjectType: "os.Answers"
-            Hostname: "{{ target_hostname }}"
-            IpVersion: "V4"
-            IpConfigType: "static"
-            NetworkDevice: "{{ target_network_device }}"
-            IpV4ConfigGateway: "{{ target_gateway }}"
-            IpV4ConfigIpAddress: "{{ target_ip }}"
-            IpV4ConfigNetmask: "{{ target_netmask }}"
-            NameServer: "{{ target_nameserver }}"
-            RootPassword: "Cisco123!"
-            IsRootPasswordCrypted: false
-            Source: "None"
           AdditionalParameters:
-            - ObjectType: "os.PlaceHolder"
+            - ClassId: "os.PlaceHolder"
+              ObjectType: "os.PlaceHolder"
               IsValueSet: true
               Type:
+                ClassId: "workflow.PrimitiveDataType"
                 ObjectType: "workflow.PrimitiveDataType"
                 Name: ".RootPassword"
                 Properties:
+                  ClassId: "workflow.PrimitiveDataProperty"
                   ObjectType: "workflow.PrimitiveDataProperty"
                   Type: "string"
-              Value: "Cisco123!"
-            - ObjectType: "os.PlaceHolder"
+                  Constraints:
+                    ClassId: "workflow.Constraints"
+                    ObjectType: "workflow.Constraints"
+              Value: "{{ root_password }}"
+            - ClassId: "os.PlaceHolder"
+              ObjectType: "os.PlaceHolder"
               IsValueSet: true
               Type:
-                ObjectType: "workflow.PrimitiveDataType"
-                Name: ".IpVersion"
-                Properties:
-                  ObjectType: "workflow.PrimitiveDataProperty"
-                  Type: "string"
-              Value: "V4"
-            - ObjectType: "os.PlaceHolder"
-              IsValueSet: true
-              Type:
-                ObjectType: "workflow.PrimitiveDataType"
-                Name: ".IpConfigType"
-                Properties:
-                  ObjectType: "workflow.PrimitiveDataProperty"
-                  Type: "string"
-              Value: "static"
-            - ObjectType: "os.PlaceHolder"
-              IsValueSet: true
-              Type:
-                ObjectType: "workflow.PrimitiveDataType"
-                Name: ".NetworkDevice"
-                Properties:
-                  ObjectType: "workflow.PrimitiveDataProperty"
-                  Type: "string"
-              Value: "{{ target_network_device }}"
-            - ObjectType: "os.PlaceHolder"
-              IsValueSet: true
-              Type:
-                ObjectType: "workflow.PrimitiveDataType"
-                Name: ".IpV4ConfigGateway"
-                Properties:
-                  ObjectType: "workflow.PrimitiveDataProperty"
-                  Type: "string"
-              Value: "{{ target_gateway }}"
-            - ObjectType: "os.PlaceHolder"
-              IsValueSet: true
-              Type:
-                ObjectType: "workflow.PrimitiveDataType"
-                Name: ".IpV4ConfigIpAddress"
-                Properties:
-                  ObjectType: "workflow.PrimitiveDataProperty"
-                  Type: "string"
-              Value: "{{ target_ip }}"
-            - ObjectType: "os.PlaceHolder"
-              IsValueSet: true
-              Type:
-                ObjectType: "workflow.PrimitiveDataType"
-                Name: ".IpV4ConfigNetmask"
-                Properties:
-                  ObjectType: "workflow.PrimitiveDataProperty"
-                  Type: "string"
-              Value: "{{ target_netmask }}"
-            - ObjectType: "os.PlaceHolder"
-              IsValueSet: true
-              Type:
-                ObjectType: "workflow.PrimitiveDataType"
-                Name: ".NameServer"
-                Properties:
-                  ObjectType: "workflow.PrimitiveDataProperty"
-                  Type: "string"
-              Value: "{{ target_nameserver }}"
-            - ObjectType: "os.PlaceHolder"
-              IsValueSet: true
-              Type:
+                ClassId: "workflow.PrimitiveDataType"
                 ObjectType: "workflow.PrimitiveDataType"
                 Name: ".Hostname"
                 Properties:
+                  ClassId: "workflow.PrimitiveDataProperty"
                   ObjectType: "workflow.PrimitiveDataProperty"
                   Type: "string"
-              Value: "{{ target_hostname }}"
-            - ObjectType: "os.PlaceHolder"
+                  Constraints:
+                    ClassId: "workflow.Constraints"
+                    ObjectType: "workflow.Constraints"
+              Value: "{{ hostname }}"
+            - ClassId: "os.PlaceHolder"
+              ObjectType: "os.PlaceHolder"
               IsValueSet: true
               Type:
+                ClassId: "workflow.PrimitiveDataType"
                 ObjectType: "workflow.PrimitiveDataType"
-                Name: ".AlternateNameServer"
+                Name: ".IpAddress"
                 Properties:
+                  ClassId: "workflow.PrimitiveDataProperty"
                   ObjectType: "workflow.PrimitiveDataProperty"
                   Type: "string"
+                  Constraints:
+                    ClassId: "workflow.Constraints"
+                    ObjectType: "workflow.Constraints"
+              Value: "{{ ip_address }}"
+            - ClassId: "os.PlaceHolder"
+              ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ClassId: "workflow.PrimitiveDataType"
+                ObjectType: "workflow.PrimitiveDataType"
+                Name: ".Netmask"
+                Properties:
+                  ClassId: "workflow.PrimitiveDataProperty"
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+                  Constraints:
+                    ClassId: "workflow.Constraints"
+                    ObjectType: "workflow.Constraints"
+              Value: "{{ netmask }}"
+            - ClassId: "os.PlaceHolder"
+              ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ClassId: "workflow.PrimitiveDataType"
+                ObjectType: "workflow.PrimitiveDataType"
+                Name: ".Gateway"
+                Properties:
+                  ClassId: "workflow.PrimitiveDataProperty"
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+                  Constraints:
+                    ClassId: "workflow.Constraints"
+                    ObjectType: "workflow.Constraints"
+              Value: "{{ gateway }}"
+            - ClassId: "os.PlaceHolder"
+              ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ClassId: "workflow.PrimitiveDataType"
+                ObjectType: "workflow.PrimitiveDataType"
+                Name: ".Nameserver"
+                Properties:
+                  ClassId: "workflow.PrimitiveDataProperty"
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+                  Constraints:
+                    ClassId: "workflow.Constraints"
+                    ObjectType: "workflow.Constraints"
+              Value: "{{ dns_server }}"
+            - ClassId: "os.PlaceHolder"
+              ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ClassId: "workflow.PrimitiveDataType"
+                ObjectType: "workflow.PrimitiveDataType"
+                Name: ".NetworkDevice"
+                Properties:
+                  ClassId: "workflow.PrimitiveDataProperty"
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+                  Constraints:
+                    ClassId: "workflow.Constraints"
+                    ObjectType: "workflow.Constraints"
+              Value: "{{ network_device }}"
+            - ClassId: "os.PlaceHolder"
+              ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ClassId: "workflow.PrimitiveDataType"
+                ObjectType: "workflow.PrimitiveDataType"
+                Name: ".NtpServer"
+                Properties:
+                  ClassId: "workflow.PrimitiveDataProperty"
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+                  Constraints:
+                    ClassId: "workflow.Constraints"
+                    ObjectType: "workflow.Constraints"
+              Value: "{{ ntp_server }}"
+            - ClassId: "os.PlaceHolder"
+              ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ClassId: "workflow.PrimitiveDataType"
+                ObjectType: "workflow.PrimitiveDataType"
+                Name: ".Ipv6Address"
+                Properties:
+                  ClassId: "workflow.PrimitiveDataProperty"
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+                  Constraints:
+                    ClassId: "workflow.Constraints"
+                    ObjectType: "workflow.Constraints"
               Value: ""
-            - ObjectType: "os.PlaceHolder"
+            - ClassId: "os.PlaceHolder"
+              ObjectType: "os.PlaceHolder"
               IsValueSet: true
               Type:
+                ClassId: "workflow.PrimitiveDataType"
                 ObjectType: "workflow.PrimitiveDataType"
-                Name: ".IpV6ConfigIpAddress"
+                Name: ".Ipv6Prefix"
                 Properties:
+                  ClassId: "workflow.PrimitiveDataProperty"
                   ObjectType: "workflow.PrimitiveDataProperty"
                   Type: "string"
+                  Constraints:
+                    ClassId: "workflow.Constraints"
+                    ObjectType: "workflow.Constraints"
               Value: ""
-            - ObjectType: "os.PlaceHolder"
+            - ClassId: "os.PlaceHolder"
+              ObjectType: "os.PlaceHolder"
               IsValueSet: true
               Type:
+                ClassId: "workflow.PrimitiveDataType"
                 ObjectType: "workflow.PrimitiveDataType"
-                Name: ".IpV6ConfigGateway"
+                Name: ".Ipv6Gateway"
                 Properties:
+                  ClassId: "workflow.PrimitiveDataProperty"
                   ObjectType: "workflow.PrimitiveDataProperty"
                   Type: "string"
-              Value: ""
-            - ObjectType: "os.PlaceHolder"
-              IsValueSet: true
-              Type:
-                ObjectType: "workflow.PrimitiveDataType"
-                Name: ".IpV6ConfigPrefix"
-                Properties:
-                  ObjectType: "workflow.PrimitiveDataProperty"
-                  Type: "string"
+                  Constraints:
+                    ClassId: "workflow.Constraints"
+                    ObjectType: "workflow.Constraints"
               Value: ""
       register: os_install_result
 
-    # =========================================================
-    # FASE 3: Resultado
-    # =========================================================
-
-    - name: 7. Mostrar resultado de la instalacion
-      debug:
-        msg: |
-          ============================================
-          INSTALACION INICIADA EXITOSAMENTE
-          ============================================
-          Install Moid: {{ os_install_result.api_response.Moid }}
-          Servidor: {{ server_name }}
-          Hostname: {{ target_hostname }}
-          IP: {{ target_ip }}
-          Imagen: {{ os_image_name }}
-          ============================================
-          Monitorea el progreso en Intersight GUI:
-          Operate > OS Install
-          ============================================
+    - name: Display OS Install Result
+      ansible.builtin.debug:
+        var: os_install_result
