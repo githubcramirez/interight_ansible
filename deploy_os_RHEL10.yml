@@ -1,0 +1,243 @@
+---
+- name: Deploy RHEL 10 via Cisco Intersight OS Install API
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    # Intersight API credentials (set in AWX Credentials or extra_vars)
+    intersight_api_key_id: "{{ api_key_id }}"
+    intersight_api_private_key: "{{ api_secret_key }}"
+    intersight_api_uri: "https://intersight.com/api/v1"
+
+    # AWX Survey Variables
+    server_name: "{{ survey_server_name }}"
+    org_name: "{{ survey_org_name }}"
+    os_image_name: "{{ survey_os_image_name | default('RHEL10') }}"
+    scu_image_name: "{{ survey_scu_image_name | default('SCU-7.1.5.250100') }}"
+    config_file_name: "{{ survey_config_file_name | default('RHEL10.ks') }}"
+    hostname: "{{ survey_hostname }}"
+    ip_address: "{{ survey_ip_address }}"
+    netmask: "{{ survey_netmask | default('255.255.255.0') }}"
+    gateway: "{{ survey_gateway }}"
+    nameserver: "{{ survey_nameserver | default('198.19.255.137') }}"
+    alt_nameserver: "{{ survey_alt_nameserver | default('198.19.255.137') }}"
+    network_device: "{{ survey_network_device | default('eth1') }}"
+    root_password: "{{ survey_root_password }}"
+    ip_config_type: "{{ survey_ip_config_type | default('static') }}"
+    ip_version: "{{ survey_ip_version | default('V4') }}"
+    install_name: "RHEL10-Install-{{ hostname }}"
+
+  tasks:
+    ##########################################################################
+    # PHASE 1: Resolve Moids from human-readable names
+    ##########################################################################
+
+    - name: "Phase 1.1 - Resolve Organization Moid"
+      cisco.intersight.intersight_rest_api:
+        api_private_key: "{{ intersight_api_private_key }}"
+        api_key_id: "{{ intersight_api_key_id }}"
+        api_uri: "{{ intersight_api_uri }}"
+        resource_path: "/organization/Organizations"
+        query_params:
+          $filter: "Name eq '{{ org_name }}'"
+      register: org_result
+
+    - name: "Set Organization Moid"
+      ansible.builtin.set_fact:
+        org_moid: "{{ org_result.api_response[0].Moid }}"
+      when: org_result.api_response | length > 0
+
+    - name: "Phase 1.2 - Resolve Server (Blade) Moid"
+      cisco.intersight.intersight_rest_api:
+        api_private_key: "{{ intersight_api_private_key }}"
+        api_key_id: "{{ intersight_api_key_id }}"
+        api_uri: "{{ intersight_api_uri }}"
+        resource_path: "/compute/Blades"
+        query_params:
+          $filter: "Name eq '{{ server_name }}'"
+      register: server_result
+
+    - name: "Set Server Moid"
+      ansible.builtin.set_fact:
+        server_moid: "{{ server_result.api_response[0].Moid }}"
+      when: server_result.api_response | length > 0
+
+    - name: "Phase 1.3 - Resolve OS Image Moid"
+      cisco.intersight.intersight_rest_api:
+        api_private_key: "{{ intersight_api_private_key }}"
+        api_key_id: "{{ intersight_api_key_id }}"
+        api_uri: "{{ intersight_api_uri }}"
+        resource_path: "/softwarerepository/OperatingSystemFiles"
+        query_params:
+          $filter: "Name eq '{{ os_image_name }}'"
+      register: os_image_result
+
+    - name: "Set OS Image Moid"
+      ansible.builtin.set_fact:
+        os_image_moid: "{{ os_image_result.api_response[0].Moid }}"
+      when: os_image_result.api_response | length > 0
+
+    - name: "Phase 1.4 - Resolve SCU Image Moid"
+      cisco.intersight.intersight_rest_api:
+        api_private_key: "{{ intersight_api_private_key }}"
+        api_key_id: "{{ intersight_api_key_id }}"
+        api_uri: "{{ intersight_api_uri }}"
+        resource_path: "/firmware/ServerConfigurationUtilityDistributables"
+        query_params:
+          $filter: "Name eq '{{ scu_image_name }}'"
+      register: scu_result
+
+    - name: "Set SCU Image Moid"
+      ansible.builtin.set_fact:
+        scu_moid: "{{ scu_result.api_response[0].Moid }}"
+      when: scu_result.api_response | length > 0
+
+    - name: "Phase 1.5 - Resolve Configuration File Moid"
+      cisco.intersight.intersight_rest_api:
+        api_private_key: "{{ intersight_api_private_key }}"
+        api_key_id: "{{ intersight_api_key_id }}"
+        api_uri: "{{ intersight_api_uri }}"
+        resource_path: "/os/ConfigurationFiles"
+        query_params:
+          $filter: "Name eq '{{ config_file_name }}'"
+      register: config_file_result
+
+    - name: "Set Configuration File Moid"
+      ansible.builtin.set_fact:
+        config_file_moid: "{{ config_file_result.api_response[0].Moid }}"
+      when: config_file_result.api_response | length > 0
+
+    ##########################################################################
+    # PHASE 2: Validate all Moids were resolved
+    ##########################################################################
+
+    - name: "Phase 2 - Validate all required Moids"
+      ansible.builtin.assert:
+        that:
+          - org_moid is defined
+          - server_moid is defined
+          - os_image_moid is defined
+          - scu_moid is defined
+          - config_file_moid is defined
+        fail_msg: |
+          ERROR: One or more resources could not be found in Intersight.
+          Organization '{{ org_name }}': {{ org_moid | default('NOT FOUND') }}
+          Server '{{ server_name }}': {{ server_moid | default('NOT FOUND') }}
+          OS Image '{{ os_image_name }}': {{ os_image_moid | default('NOT FOUND') }}
+          SCU '{{ scu_image_name }}': {{ scu_moid | default('NOT FOUND') }}
+          Config File '{{ config_file_name }}': {{ config_file_moid | default('NOT FOUND') }}
+        success_msg: "All Moids resolved successfully."
+
+    - name: "Phase 2 - Display resolved Moids"
+      ansible.builtin.debug:
+        msg:
+          - "Organization: {{ org_name }} → {{ org_moid }}"
+          - "Server: {{ server_name }} → {{ server_moid }}"
+          - "OS Image: {{ os_image_name }} → {{ os_image_moid }}"
+          - "SCU: {{ scu_image_name }} → {{ scu_moid }}"
+          - "Config File: {{ config_file_name }} → {{ config_file_moid }}"
+          - "Install Name: {{ install_name }}"
+
+    ##########################################################################
+    # PHASE 3: Trigger OS Install - NO InstallTarget (RHEL 10 fix)
+    ##########################################################################
+
+    - name: "Phase 3 - Trigger RHEL 10 OS Install via Intersight API"
+      cisco.intersight.intersight_rest_api:
+        api_private_key: "{{ intersight_api_private_key }}"
+        api_key_id: "{{ intersight_api_key_id }}"
+        api_uri: "{{ intersight_api_uri }}"
+        resource_path: "/os/Installs"
+        state: present
+        api_body:
+          ClassId: "os.Install"
+          ObjectType: "os.Install"
+          Name: "{{ install_name }}"
+          InstallMethod: "vMedia"
+          OverrideSecureBoot: true
+          Server:
+            ClassId: "mo.MoRef"
+            ObjectType: "compute.Blade"
+            Moid: "{{ server_moid }}"
+          Image:
+            ClassId: "mo.MoRef"
+            ObjectType: "softwarerepository.OperatingSystemFile"
+            Moid: "{{ os_image_moid }}"
+          OsduImage:
+            ClassId: "mo.MoRef"
+            ObjectType: "firmware.ServerConfigurationUtilityDistributable"
+            Moid: "{{ scu_moid }}"
+          ConfigurationFile:
+            ClassId: "mo.MoRef"
+            ObjectType: "os.ConfigurationFile"
+            Moid: "{{ config_file_moid }}"
+          Answers:
+            ClassId: "os.Answers"
+            ObjectType: "os.Answers"
+            Source: "Template"
+            IpConfigType: "{{ ip_config_type }}"
+            IpVersion: "{{ ip_version }}"
+            IsRootPasswordCrypted: true
+            Hostname: "{{ hostname }}"
+            NetworkDevice: "{{ network_device }}"
+          AdditionalParameters:
+            - ClassId: "os.PlaceHolder"
+              ObjectType: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ClassId: "workflow.PrimitiveDataType"
+                ObjectType: "workflow.PrimitiveDataType"
+              Value:
+                ClassId: "workflow.PrimitiveDataProperty"
+                ObjectType: "workflow.PrimitiveDataProperty"
+              Keys:
+                - IpVersion: "{{ ip_version }}"
+                - NetworkDevice: "{{ network_device }}"
+                - IpV4ConfigIpAddress: "{{ ip_address }}"
+                - IpV4ConfigNetmask: "{{ netmask }}"
+                - IpV4ConfigGateway: "{{ gateway }}"
+                - NameServer: "{{ nameserver }}"
+                - IpV6ConfigGateway: ""
+                - RootPassword: "{{ root_password }}"
+                - IpConfigType: "{{ ip_config_type }}"
+                - IpV6ConfigIpAddress: ""
+                - IpV6ConfigPrefix: ""
+                - Hostname: "{{ hostname }}"
+                - AlternateNameServer: "{{ alt_nameserver }}"
+          Organization:
+            ClassId: "mo.MoRef"
+            ObjectType: "organization.Organization"
+            Moid: "{{ org_moid }}"
+      register: install_result
+
+    ##########################################################################
+    # PHASE 4: Display results
+    ##########################################################################
+
+    - name: "Phase 4 - Display OS Install Result"
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "  RHEL 10 OS INSTALL TRIGGERED SUCCESSFULLY"
+          - "============================================"
+          - "Install Moid: {{ install_result.api_response.Moid | default('N/A') }}"
+          - "Status: {{ install_result.api_response.OperState | default('N/A') }}"
+          - "Server: {{ server_name }}"
+          - "Hostname: {{ hostname }}"
+          - "IP Address: {{ ip_address }}"
+          - "============================================"
+          - "NOTE: No InstallTarget specified."
+          - "Disk selection handled by kickstart:"
+          - "  ignoredisk --only-use=sda"
+          - "  clearpart --all --initlabel --drives=sda"
+          - "  autopart --type=lvm"
+          - "============================================"
+      when: install_result is succeeded
+
+    - name: "Phase 4 - Display failure details"
+      ansible.builtin.debug:
+        msg:
+          - "OS Install trigger FAILED."
+          - "Response: {{ install_result }}"
+      when: install_result is failed
