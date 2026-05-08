@@ -186,11 +186,15 @@
             ClassId: "os.Answers"
             ObjectType: "os.Answers"
             Source: "Template"
-            IpConfigType: "{{ ip_config_type }}"
-            IpVersion: "{{ ip_version }}"
+            Hostname: ""
+            IpAddress: ""
+            IpConfigType: "static"
+            IpVersion: "V4"
             IsRootPasswordCrypted: true
-            Hostname: "{{ hostname }}"
-            NetworkDevice: "{{ network_device }}"
+            IsRootPasswordSet: false
+            Nameserver: ""
+            NetworkDevice: ""
+            RootPassword: ""
           AdditionalParameters:
             - ClassId: "os.PlaceHolder"
               ObjectType: "os.PlaceHolder"
