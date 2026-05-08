@@ -1,257 +1,630 @@
 ---
 - name: Deploy RHEL 10 via Cisco Intersight OS Install API
   hosts: localhost
+  gather_facts: no
   connection: local
-  gather_facts: false
 
   vars:
-    # Intersight API credentials (set in AWX Credentials or extra_vars)
-    intersight_api_key_id: "{{ api_key_id }}"
-    intersight_api_private_key: "{{ api_private_key }}"
-    intersight_api_uri: "https://intersight.com/api/v1"
-
-    # AWX Survey Variables
-    server_name: "{{ survey_server_name }}"
-    org_name: "{{ survey_org_name }}"
-    os_image_name: "{{ survey_os_image_name | default('RHEL10') }}"
-    scu_image_name: "{{ survey_scu_image_name | default('SCU-7.1.5.250100') }}"
-    config_file_name: "{{ survey_config_file_name | default('RHEL10.ks') }}"
-    hostname: "{{ survey_hostname }}"
-    ip_address: "{{ survey_ip_address }}"
-    netmask: "{{ survey_netmask | default('255.255.255.0') }}"
-    gateway: "{{ survey_gateway }}"
-    nameserver: "{{ survey_nameserver | default('198.19.255.137') }}"
-    alt_nameserver: "{{ survey_alt_nameserver | default('198.19.255.137') }}"
-    network_device: "{{ survey_network_device | default('eth1') }}"
-    root_password: "{{ survey_root_password }}"
-    ip_config_type: "{{ survey_ip_config_type | default('static') }}"
-    ip_version: "{{ survey_ip_version | default('V4') }}"
-    install_name: "RHEL10-Install-{{ hostname }}"
+    api_key_id: "6514bd3c7564613301ee9d9e/69d930c875646132012d5f60/69e25bb7756461320110e94d"
 
   tasks:
-    ##########################################################################
-    # PHASE 1: Resolve Moids from human-readable names
-    ##########################################################################
+    # =========================================================
+    # PHASE 1: Resolve Names to Moids
+    # =========================================================
 
-    - name: "Phase 1.1 - Resolve Organization Moid"
+    - name: Resolve Organization Moid
       cisco.intersight.intersight_rest_api:
-        api_private_key: "{{ intersight_api_private_key }}"
-        api_key_id: "{{ intersight_api_key_id }}"
-        api_uri: "{{ intersight_api_uri }}"
+        api_private_key: "{{ api_private_key }}"
+        api_key_id: "{{ api_key_id }}"
         resource_path: "/organization/Organizations"
         query_params:
           $filter: "Name eq '{{ org_name }}'"
+        return_list: true
       register: org_result
 
-    - name: "Set Organization Moid"
-      ansible.builtin.set_fact:
-        org_moid: >-
-          {{ org_result.api_response.Moid
-             if org_result.api_response is mapping
-             else org_result.api_response[0].Moid }}
-
-    - name: "Phase 1.2 - Resolve Server (Blade) Moid"
+    - name: Resolve Server Moid
       cisco.intersight.intersight_rest_api:
-        api_private_key: "{{ intersight_api_private_key }}"
-        api_key_id: "{{ intersight_api_key_id }}"
-        api_uri: "{{ intersight_api_uri }}"
+        api_private_key: "{{ api_private_key }}"
+        api_key_id: "{{ api_key_id }}"
         resource_path: "/compute/Blades"
         query_params:
           $filter: "Name eq '{{ server_name }}'"
+        return_list: true
       register: server_result
 
-    - name: "Set Server Moid"
-      ansible.builtin.set_fact:
-        server_moid: >-
-          {{ server_result.api_response.Moid
-             if server_result.api_response is mapping
-             else server_result.api_response[0].Moid }}
-
-    - name: "Phase 1.3 - Resolve OS Image Moid"
+    - name: Resolve OS Image Moid
       cisco.intersight.intersight_rest_api:
-        api_private_key: "{{ intersight_api_private_key }}"
-        api_key_id: "{{ intersight_api_key_id }}"
-        api_uri: "{{ intersight_api_uri }}"
+        api_private_key: "{{ api_private_key }}"
+        api_key_id: "{{ api_key_id }}"
         resource_path: "/softwarerepository/OperatingSystemFiles"
         query_params:
           $filter: "Name eq '{{ os_image_name }}'"
+        return_list: true
       register: os_image_result
 
-    - name: "Set OS Image Moid"
-      ansible.builtin.set_fact:
-        os_image_moid: >-
-          {{ os_image_result.api_response.Moid
-             if os_image_result.api_response is mapping
-             else os_image_result.api_response[0].Moid }}
-
-    - name: "Phase 1.4 - Resolve SCU Image Moid"
+    - name: Resolve SCU Moid
       cisco.intersight.intersight_rest_api:
-        api_private_key: "{{ intersight_api_private_key }}"
-        api_key_id: "{{ intersight_api_key_id }}"
-        api_uri: "{{ intersight_api_uri }}"
+        api_private_key: "{{ api_private_key }}"
+        api_key_id: "{{ api_key_id }}"
         resource_path: "/firmware/ServerConfigurationUtilityDistributables"
         query_params:
-          $filter: "Name eq '{{ scu_image_name }}'"
+          $filter: "Name eq '{{ scu_name }}'"
+        return_list: true
       register: scu_result
 
-    - name: "Set SCU Image Moid"
-      ansible.builtin.set_fact:
-        scu_moid: >-
-          {{ scu_result.api_response.Moid
-             if scu_result.api_response is mapping
-             else scu_result.api_response[0].Moid }}
-
-    - name: "Phase 1.5 - Resolve Configuration File Moid"
+    - name: Resolve Config File Moid
       cisco.intersight.intersight_rest_api:
-        api_private_key: "{{ intersight_api_private_key }}"
-        api_key_id: "{{ intersight_api_key_id }}"
-        api_uri: "{{ intersight_api_uri }}"
+        api_private_key: "{{ api_private_key }}"
+        api_key_id: "{{ api_key_id }}"
         resource_path: "/os/ConfigurationFiles"
         query_params:
           $filter: "Name eq '{{ config_file_name }}'"
+        return_list: true
       register: config_file_result
 
-    - name: "Set Configuration File Moid"
+    # =========================================================
+    # PHASE 2: Extract and Validate Moids
+    # =========================================================
+
+    - name: Set Moid facts
       ansible.builtin.set_fact:
-        config_file_moid: >-
-          {{ config_file_result.api_response.Moid
-             if config_file_result.api_response is mapping
-             else config_file_result.api_response[0].Moid }}
+        org_moid: "{{ org_result.api_response[0].Moid | default('') }}"
+        server_moid: "{{ server_result.api_response[0].Moid | default('') }}"
+        os_image_moid: "{{ os_image_result.api_response[0].Moid | default('') }}"
+        scu_moid: "{{ scu_result.api_response[0].Moid | default('') }}"
+        config_file_moid: "{{ config_file_result.api_response[0].Moid | default('') }}"
 
-    ##########################################################################
-    # PHASE 2: Validate all Moids were resolved
-    ##########################################################################
-
-    - name: "Phase 2 - Validate all required Moids"
-      ansible.builtin.assert:
-        that:
-          - org_moid is defined and org_moid | length > 0
-          - server_moid is defined and server_moid | length > 0
-          - os_image_moid is defined and os_image_moid | length > 0
-          - scu_moid is defined and scu_moid | length > 0
-          - config_file_moid is defined and config_file_moid | length > 0
-        fail_msg: |
-          ERROR: One or more resources could not be found in Intersight.
-          Organization '{{ org_name }}': {{ org_moid | default('NOT FOUND') }}
-          Server '{{ server_name }}': {{ server_moid | default('NOT FOUND') }}
-          OS Image '{{ os_image_name }}': {{ os_image_moid | default('NOT FOUND') }}
-          SCU '{{ scu_image_name }}': {{ scu_moid | default('NOT FOUND') }}
-          Config File '{{ config_file_name }}': {{ config_file_moid | default('NOT FOUND') }}
-        success_msg: "All Moids resolved successfully."
-
-    - name: "Phase 2 - Display resolved Moids"
+    - name: Display resolved Moids
       ansible.builtin.debug:
         msg:
-          - "Organization: {{ org_name }} → {{ org_moid }}"
-          - "Server: {{ server_name }} → {{ server_moid }}"
-          - "OS Image: {{ os_image_name }} → {{ os_image_moid }}"
-          - "SCU: {{ scu_image_name }} → {{ scu_moid }}"
-          - "Config File: {{ config_file_name }} → {{ config_file_moid }}"
-          - "Install Name: {{ install_name }}"
+          - "Organization '{{ org_name }}': {{ org_moid }}"
+          - "Server '{{ server_name }}': {{ server_moid }}"
+          - "OS Image '{{ os_image_name }}': {{ os_image_moid }}"
+          - "SCU '{{ scu_name }}': {{ scu_moid }}"
+          - "Config File '{{ config_file_name }}': {{ config_file_moid }}"
 
-    ##########################################################################
-    # PHASE 3: Trigger OS Install - NO InstallTarget (RHEL 10 fix)
-    ##########################################################################
+    - name: Validate all Moids resolved successfully
+      ansible.builtin.assert:
+        that:
+          - org_moid | length > 0
+          - server_moid | length > 0
+          - os_image_moid | length > 0
+          - scu_moid | length > 0
+          - config_file_moid | length > 0
+        fail_msg: >
+          One or more resources could not be resolved.
+          Organization: '{{ org_moid }}',
+          Server: '{{ server_moid }}',
+          OS Image: '{{ os_image_moid }}',
+          SCU: '{{ scu_moid }}',
+          Config File: '{{ config_file_moid }}'
+        success_msg: "All Moids resolved successfully."
 
-    - name: "Phase 3 - Trigger RHEL 10 OS Install via Intersight API"
+    # =========================================================
+    # PHASE 3: Execute OS Install (NO InstallTarget for RHEL 10)
+    # =========================================================
+
+    - name: Trigger RHEL 10 OS Install via Intersight API
       cisco.intersight.intersight_rest_api:
-        api_private_key: "{{ intersight_api_private_key }}"
-        api_key_id: "{{ intersight_api_key_id }}"
-        api_uri: "{{ intersight_api_uri }}"
+        api_private_key: "{{ api_private_key }}"
+        api_key_id: "{{ api_key_id }}"
         resource_path: "/os/Installs"
         state: present
         api_body:
-          ClassId: "os.Install"
+          Name: "RHEL10_Install_{{ server_name }}"
           ObjectType: "os.Install"
-          Name: "{{ install_name }}"
+          ClassId: "os.Install"
           InstallMethod: "vMedia"
           OverrideSecureBoot: true
+          Organization:
+            ObjectType: "organization.Organization"
+            Moid: "{{ org_moid }}"
           Server:
-            ClassId: "mo.MoRef"
             ObjectType: "compute.Blade"
             Moid: "{{ server_moid }}"
           Image:
-            ClassId: "mo.MoRef"
             ObjectType: "softwarerepository.OperatingSystemFile"
             Moid: "{{ os_image_moid }}"
           OsduImage:
-            ClassId: "mo.MoRef"
             ObjectType: "firmware.ServerConfigurationUtilityDistributable"
             Moid: "{{ scu_moid }}"
           ConfigurationFile:
-            ClassId: "mo.MoRef"
             ObjectType: "os.ConfigurationFile"
             Moid: "{{ config_file_moid }}"
           Answers:
-            ClassId: "os.Answers"
             ObjectType: "os.Answers"
+            ClassId: "os.Answers"
             Source: "Template"
-            Hostname: ""
-            IpAddress: ""
             IpConfigType: "static"
-            IpVersion: "V4"
-            IsRootPasswordCrypted: true
-            IsRootPasswordSet: false
-            Nameserver: ""
+            IpConfiguration:
+              ObjectType: "os.Ipv4Configuration"
+              ClassId: "os.Ipv4Configuration"
+            Hostname: ""
             NetworkDevice: ""
             RootPassword: ""
+            IsRootPasswordCrypted: false
+            Nameserver: ""
           AdditionalParameters:
-            - ClassId: "os.PlaceHolder"
-              ObjectType: "os.PlaceHolder"
+            - ObjectType: "os.PlaceHolder"
+              ClassId: "os.PlaceHolder"
               IsValueSet: true
               Type:
-                ClassId: "workflow.PrimitiveDataType"
                 ObjectType: "workflow.PrimitiveDataType"
-              Value:
-                ClassId: "workflow.PrimitiveDataProperty"
-                ObjectType: "workflow.PrimitiveDataProperty"
-              Keys:
-                - IpVersion: "{{ ip_version }}"
-                - NetworkDevice: "{{ network_device }}"
-                - IpV4ConfigIpAddress: "{{ ip_address }}"
-                - IpV4ConfigNetmask: "{{ netmask }}"
-                - IpV4ConfigGateway: "{{ gateway }}"
-                - NameServer: "{{ nameserver }}"
-                - IpV6ConfigGateway: ""
-                - RootPassword: "{{ root_password }}"
-                - IpConfigType: "{{ ip_config_type }}"
-                - IpV6ConfigIpAddress: ""
-                - IpV6ConfigPrefix: ""
-                - Hostname: "{{ hostname }}"
-                - AlternateNameServer: "{{ alt_nameserver }}"
-          Organization:
-            ClassId: "mo.MoRef"
-            ObjectType: "organization.Organization"
-            Moid: "{{ org_moid }}"
-      register: install_result
+                ClassId: "workflow.PrimitiveDataType"
+                Name: "IpV4ConfigIpAddress"
+                Label: "IP Address"
+                Description: "IPv4 address"
+                Required: true
+                Default:
+                  ObjectType: "workflow.DefaultValue"
+                  ClassId: "workflow.DefaultValue"
+                  Override: false
+                  Value: ""
+                DisplayMeta:
+                  ObjectType: "workflow.DisplayMeta"
+                  ClassId: "workflow.DisplayMeta"
+                  InventorySelector: true
+                  WidgetType: "None"
+                InputParameters: null
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  ClassId: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+                  Secure: false
+                  Constraints:
+                    ObjectType: "workflow.Constraints"
+                    ClassId: "workflow.Constraints"
+                    EnumList: []
+                    Max: 0
+                    Min: 0
+                    Regex: ""
+                    DataSourceSelector: []
+                    InventorySelector: []
+              Value: "{{ ip_address }}"
+            - ObjectType: "os.PlaceHolder"
+              ClassId: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                ClassId: "workflow.PrimitiveDataType"
+                Name: "IpV4ConfigNetmask"
+                Label: "Netmask"
+                Description: "Subnet mask"
+                Required: true
+                Default:
+                  ObjectType: "workflow.DefaultValue"
+                  ClassId: "workflow.DefaultValue"
+                  Override: false
+                  Value: ""
+                DisplayMeta:
+                  ObjectType: "workflow.DisplayMeta"
+                  ClassId: "workflow.DisplayMeta"
+                  InventorySelector: true
+                  WidgetType: "None"
+                InputParameters: null
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  ClassId: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+                  Secure: false
+                  Constraints:
+                    ObjectType: "workflow.Constraints"
+                    ClassId: "workflow.Constraints"
+                    EnumList: []
+                    Max: 0
+                    Min: 0
+                    Regex: ""
+                    DataSourceSelector: []
+                    InventorySelector: []
+              Value: "{{ netmask }}"
+            - ObjectType: "os.PlaceHolder"
+              ClassId: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                ClassId: "workflow.PrimitiveDataType"
+                Name: "IpV4ConfigGateway"
+                Label: "Gateway"
+                Description: "Default gateway"
+                Required: true
+                Default:
+                  ObjectType: "workflow.DefaultValue"
+                  ClassId: "workflow.DefaultValue"
+                  Override: false
+                  Value: ""
+                DisplayMeta:
+                  ObjectType: "workflow.DisplayMeta"
+                  ClassId: "workflow.DisplayMeta"
+                  InventorySelector: true
+                  WidgetType: "None"
+                InputParameters: null
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  ClassId: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+                  Secure: false
+                  Constraints:
+                    ObjectType: "workflow.Constraints"
+                    ClassId: "workflow.Constraints"
+                    EnumList: []
+                    Max: 0
+                    Min: 0
+                    Regex: ""
+                    DataSourceSelector: []
+                    InventorySelector: []
+              Value: "{{ gateway }}"
+            - ObjectType: "os.PlaceHolder"
+              ClassId: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                ClassId: "workflow.PrimitiveDataType"
+                Name: "NameServer"
+                Label: "Nameserver"
+                Description: "DNS nameserver"
+                Required: true
+                Default:
+                  ObjectType: "workflow.DefaultValue"
+                  ClassId: "workflow.DefaultValue"
+                  Override: false
+                  Value: ""
+                DisplayMeta:
+                  ObjectType: "workflow.DisplayMeta"
+                  ClassId: "workflow.DisplayMeta"
+                  InventorySelector: true
+                  WidgetType: "None"
+                InputParameters: null
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  ClassId: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+                  Secure: false
+                  Constraints:
+                    ObjectType: "workflow.Constraints"
+                    ClassId: "workflow.Constraints"
+                    EnumList: []
+                    Max: 0
+                    Min: 0
+                    Regex: ""
+                    DataSourceSelector: []
+                    InventorySelector: []
+              Value: "{{ nameserver }}"
+            - ObjectType: "os.PlaceHolder"
+              ClassId: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                ClassId: "workflow.PrimitiveDataType"
+                Name: "Hostname"
+                Label: "Hostname"
+                Description: "Hostname for the server"
+                Required: true
+                Default:
+                  ObjectType: "workflow.DefaultValue"
+                  ClassId: "workflow.DefaultValue"
+                  Override: false
+                  Value: ""
+                DisplayMeta:
+                  ObjectType: "workflow.DisplayMeta"
+                  ClassId: "workflow.DisplayMeta"
+                  InventorySelector: true
+                  WidgetType: "None"
+                InputParameters: null
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  ClassId: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+                  Secure: false
+                  Constraints:
+                    ObjectType: "workflow.Constraints"
+                    ClassId: "workflow.Constraints"
+                    EnumList: []
+                    Max: 0
+                    Min: 0
+                    Regex: ""
+                    DataSourceSelector: []
+                    InventorySelector: []
+              Value: "{{ hostname }}"
+            - ObjectType: "os.PlaceHolder"
+              ClassId: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                ClassId: "workflow.PrimitiveDataType"
+                Name: "RootPassword"
+                Label: "Root Password"
+                Description: "Root password"
+                Required: true
+                Default:
+                  ObjectType: "workflow.DefaultValue"
+                  ClassId: "workflow.DefaultValue"
+                  Override: false
+                  Value: ""
+                DisplayMeta:
+                  ObjectType: "workflow.DisplayMeta"
+                  ClassId: "workflow.DisplayMeta"
+                  InventorySelector: true
+                  WidgetType: "None"
+                InputParameters: null
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  ClassId: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+                  Secure: true
+                  Constraints:
+                    ObjectType: "workflow.Constraints"
+                    ClassId: "workflow.Constraints"
+                    EnumList: []
+                    Max: 0
+                    Min: 0
+                    Regex: ""
+                    DataSourceSelector: []
+                    InventorySelector: []
+              Value: "{{ root_password }}"
+            - ObjectType: "os.PlaceHolder"
+              ClassId: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                ClassId: "workflow.PrimitiveDataType"
+                Name: "NetworkDevice"
+                Label: "Network Device"
+                Description: "Network device"
+                Required: true
+                Default:
+                  ObjectType: "workflow.DefaultValue"
+                  ClassId: "workflow.DefaultValue"
+                  Override: false
+                  Value: ""
+                DisplayMeta:
+                  ObjectType: "workflow.DisplayMeta"
+                  ClassId: "workflow.DisplayMeta"
+                  InventorySelector: true
+                  WidgetType: "None"
+                InputParameters: null
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  ClassId: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+                  Secure: false
+                  Constraints:
+                    ObjectType: "workflow.Constraints"
+                    ClassId: "workflow.Constraints"
+                    EnumList: []
+                    Max: 0
+                    Min: 0
+                    Regex: ""
+                    DataSourceSelector: []
+                    InventorySelector: []
+              Value: "{{ network_device }}"
+            - ObjectType: "os.PlaceHolder"
+              ClassId: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                ClassId: "workflow.PrimitiveDataType"
+                Name: "IpConfigType"
+                Label: "IP Config Type"
+                Description: "IP configuration type"
+                Required: true
+                Default:
+                  ObjectType: "workflow.DefaultValue"
+                  ClassId: "workflow.DefaultValue"
+                  Override: false
+                  Value: ""
+                DisplayMeta:
+                  ObjectType: "workflow.DisplayMeta"
+                  ClassId: "workflow.DisplayMeta"
+                  InventorySelector: true
+                  WidgetType: "None"
+                InputParameters: null
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  ClassId: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+                  Secure: false
+                  Constraints:
+                    ObjectType: "workflow.Constraints"
+                    ClassId: "workflow.Constraints"
+                    EnumList: []
+                    Max: 0
+                    Min: 0
+                    Regex: ""
+                    DataSourceSelector: []
+                    InventorySelector: []
+              Value: "static"
+            - ObjectType: "os.PlaceHolder"
+              ClassId: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                ClassId: "workflow.PrimitiveDataType"
+                Name: "IpVersion"
+                Label: "IP Version"
+                Description: "IP version"
+                Required: true
+                Default:
+                  ObjectType: "workflow.DefaultValue"
+                  ClassId: "workflow.DefaultValue"
+                  Override: false
+                  Value: ""
+                DisplayMeta:
+                  ObjectType: "workflow.DisplayMeta"
+                  ClassId: "workflow.DisplayMeta"
+                  InventorySelector: true
+                  WidgetType: "None"
+                InputParameters: null
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  ClassId: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+                  Secure: false
+                  Constraints:
+                    ObjectType: "workflow.Constraints"
+                    ClassId: "workflow.Constraints"
+                    EnumList: []
+                    Max: 0
+                    Min: 0
+                    Regex: ""
+                    DataSourceSelector: []
+                    InventorySelector: []
+              Value: "IPv4"
+            - ObjectType: "os.PlaceHolder"
+              ClassId: "os.PlaceHolder"
+              IsValueSet: true
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                ClassId: "workflow.PrimitiveDataType"
+                Name: "AlternateNameServer"
+                Label: "Alternate Nameserver"
+                Description: "Alternate DNS nameserver"
+                Required: false
+                Default:
+                  ObjectType: "workflow.DefaultValue"
+                  ClassId: "workflow.DefaultValue"
+                  Override: false
+                  Value: ""
+                DisplayMeta:
+                  ObjectType: "workflow.DisplayMeta"
+                  ClassId: "workflow.DisplayMeta"
+                  InventorySelector: true
+                  WidgetType: "None"
+                InputParameters: null
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  ClassId: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+                  Secure: false
+                  Constraints:
+                    ObjectType: "workflow.Constraints"
+                    ClassId: "workflow.Constraints"
+                    EnumList: []
+                    Max: 0
+                    Min: 0
+                    Regex: ""
+                    DataSourceSelector: []
+                    InventorySelector: []
+              Value: "{{ nameserver }}"
+            - ObjectType: "os.PlaceHolder"
+              ClassId: "os.PlaceHolder"
+              IsValueSet: false
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                ClassId: "workflow.PrimitiveDataType"
+                Name: "IpV6ConfigIpAddress"
+                Label: "IPv6 Address"
+                Description: "IPv6 address"
+                Required: false
+                Default:
+                  ObjectType: "workflow.DefaultValue"
+                  ClassId: "workflow.DefaultValue"
+                  Override: false
+                  Value: ""
+                DisplayMeta:
+                  ObjectType: "workflow.DisplayMeta"
+                  ClassId: "workflow.DisplayMeta"
+                  InventorySelector: true
+                  WidgetType: "None"
+                InputParameters: null
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  ClassId: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+                  Secure: false
+                  Constraints:
+                    ObjectType: "workflow.Constraints"
+                    ClassId: "workflow.Constraints"
+                    EnumList: []
+                    Max: 0
+                    Min: 0
+                    Regex: ""
+                    DataSourceSelector: []
+                    InventorySelector: []
+              Value: ""
+            - ObjectType: "os.PlaceHolder"
+              ClassId: "os.PlaceHolder"
+              IsValueSet: false
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                ClassId: "workflow.PrimitiveDataType"
+                Name: "IpV6ConfigPrefix"
+                Label: "IPv6 Prefix"
+                Description: "IPv6 prefix"
+                Required: false
+                Default:
+                  ObjectType: "workflow.DefaultValue"
+                  ClassId: "workflow.DefaultValue"
+                  Override: false
+                  Value: ""
+                DisplayMeta:
+                  ObjectType: "workflow.DisplayMeta"
+                  ClassId: "workflow.DisplayMeta"
+                  InventorySelector: true
+                  WidgetType: "None"
+                InputParameters: null
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  ClassId: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+                  Secure: false
+                  Constraints:
+                    ObjectType: "workflow.Constraints"
+                    ClassId: "workflow.Constraints"
+                    EnumList: []
+                    Max: 0
+                    Min: 0
+                    Regex: ""
+                    DataSourceSelector: []
+                    InventorySelector: []
+              Value: ""
+            - ObjectType: "os.PlaceHolder"
+              ClassId: "os.PlaceHolder"
+              IsValueSet: false
+              Type:
+                ObjectType: "workflow.PrimitiveDataType"
+                ClassId: "workflow.PrimitiveDataType"
+                Name: "IpV6ConfigGateway"
+                Label: "IPv6 Gateway"
+                Description: "IPv6 gateway"
+                Required: false
+                Default:
+                  ObjectType: "workflow.DefaultValue"
+                  ClassId: "workflow.DefaultValue"
+                  Override: false
+                  Value: ""
+                DisplayMeta:
+                  ObjectType: "workflow.DisplayMeta"
+                  ClassId: "workflow.DisplayMeta"
+                  InventorySelector: true
+                  WidgetType: "None"
+                InputParameters: null
+                Properties:
+                  ObjectType: "workflow.PrimitiveDataProperty"
+                  ClassId: "workflow.PrimitiveDataProperty"
+                  Type: "string"
+                  Secure: false
+                  Constraints:
+                    ObjectType: "workflow.Constraints"
+                    ClassId: "workflow.Constraints"
+                    EnumList: []
+                    Max: 0
+                    Min: 0
+                    Regex: ""
+                    DataSourceSelector: []
+                    InventorySelector: []
+              Value: ""
+      register: os_install_result
 
-    ##########################################################################
-    # PHASE 4: Display results
-    ##########################################################################
-
-    - name: "Phase 4 - Display OS Install Result"
+    - name: Display OS Install result
       ansible.builtin.debug:
         msg:
           - "============================================"
           - "  RHEL 10 OS INSTALL TRIGGERED SUCCESSFULLY"
           - "============================================"
-          - "Install Moid: {{ install_result.api_response.Moid | default('N/A') }}"
-          - "Status: {{ install_result.api_response.OperState | default('N/A') }}"
+          - "Workflow Moid: {{ os_install_result.api_response.Moid | default('N/A') }}"
           - "Server: {{ server_name }}"
-          - "Hostname: {{ hostname }}"
           - "IP Address: {{ ip_address }}"
+          - "Hostname: {{ hostname }}"
           - "============================================"
-          - "NOTE: No InstallTarget specified."
-          - "Disk selection handled by kickstart:"
-          - "  ignoredisk --only-use=sda"
-          - "  clearpart --all --initlabel --drives=sda"
-          - "  autopart --type=lvm"
+          - "NOTE: No InstallTarget - disk handled by kickstart"
           - "============================================"
-      when: install_result is succeeded
-
-    - name: "Phase 4 - Display failure details"
-      ansible.builtin.debug:
-        msg:
-          - "OS Install trigger FAILED."
-          - "Response: {{ install_result }}"
-      when: install_result is failed
