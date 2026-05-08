@@ -7,7 +7,7 @@
   vars:
     # Intersight API credentials (set in AWX Credentials or extra_vars)
     intersight_api_key_id: "{{ api_key_id }}"
-    intersight_api_private_key: "{{ api_secret_key }}"
+    intersight_api_private_key: "{{ api_private_key }}"
     intersight_api_uri: "https://intersight.com/api/v1"
 
     # AWX Survey Variables
