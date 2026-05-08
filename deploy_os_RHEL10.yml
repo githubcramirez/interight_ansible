@@ -7,7 +7,7 @@
   vars:
     # Intersight API credentials (set in AWX Credentials or extra_vars)
     intersight_api_key_id: "{{ api_key_id }}"
-    intersight_api_private_key: "{{ api_private_key }}"
+    intersight_api_private_key: "{{ api_secret_key }}"
     intersight_api_uri: "https://intersight.com/api/v1"
 
     # AWX Survey Variables
@@ -45,8 +45,10 @@
 
     - name: "Set Organization Moid"
       ansible.builtin.set_fact:
-        org_moid: "{{ org_result.api_response[0].Moid }}"
-      when: org_result.api_response | length > 0
+        org_moid: >-
+          {{ org_result.api_response.Moid
+             if org_result.api_response is mapping
+             else org_result.api_response[0].Moid }}
 
     - name: "Phase 1.2 - Resolve Server (Blade) Moid"
       cisco.intersight.intersight_rest_api:
@@ -60,8 +62,10 @@
 
     - name: "Set Server Moid"
       ansible.builtin.set_fact:
-        server_moid: "{{ server_result.api_response[0].Moid }}"
-      when: server_result.api_response | length > 0
+        server_moid: >-
+          {{ server_result.api_response.Moid
+             if server_result.api_response is mapping
+             else server_result.api_response[0].Moid }}
 
     - name: "Phase 1.3 - Resolve OS Image Moid"
       cisco.intersight.intersight_rest_api:
@@ -75,8 +79,10 @@
 
     - name: "Set OS Image Moid"
       ansible.builtin.set_fact:
-        os_image_moid: "{{ os_image_result.api_response[0].Moid }}"
-      when: os_image_result.api_response | length > 0
+        os_image_moid: >-
+          {{ os_image_result.api_response.Moid
+             if os_image_result.api_response is mapping
+             else os_image_result.api_response[0].Moid }}
 
     - name: "Phase 1.4 - Resolve SCU Image Moid"
       cisco.intersight.intersight_rest_api:
@@ -90,8 +96,10 @@
 
     - name: "Set SCU Image Moid"
       ansible.builtin.set_fact:
-        scu_moid: "{{ scu_result.api_response[0].Moid }}"
-      when: scu_result.api_response | length > 0
+        scu_moid: >-
+          {{ scu_result.api_response.Moid
+             if scu_result.api_response is mapping
+             else scu_result.api_response[0].Moid }}
 
     - name: "Phase 1.5 - Resolve Configuration File Moid"
       cisco.intersight.intersight_rest_api:
@@ -105,8 +113,10 @@
 
     - name: "Set Configuration File Moid"
       ansible.builtin.set_fact:
-        config_file_moid: "{{ config_file_result.api_response[0].Moid }}"
-      when: config_file_result.api_response | length > 0
+        config_file_moid: >-
+          {{ config_file_result.api_response.Moid
+             if config_file_result.api_response is mapping
+             else config_file_result.api_response[0].Moid }}
 
     ##########################################################################
     # PHASE 2: Validate all Moids were resolved
@@ -115,11 +125,11 @@
     - name: "Phase 2 - Validate all required Moids"
       ansible.builtin.assert:
         that:
-          - org_moid is defined
-          - server_moid is defined
-          - os_image_moid is defined
-          - scu_moid is defined
-          - config_file_moid is defined
+          - org_moid is defined and org_moid | length > 0
+          - server_moid is defined and server_moid | length > 0
+          - os_image_moid is defined and os_image_moid | length > 0
+          - scu_moid is defined and scu_moid | length > 0
+          - config_file_moid is defined and config_file_moid | length > 0
         fail_msg: |
           ERROR: One or more resources could not be found in Intersight.
           Organization '{{ org_name }}': {{ org_moid | default('NOT FOUND') }}
