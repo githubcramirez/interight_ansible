@@ -6,6 +6,21 @@
 
   vars:
     api_key_id: "6514bd3c7564613301ee9d9e/69d930c875646132012d5f60/69e25bb7756461320110e94d"
+    org_name: "AI-Workloads"
+    server_name: "CX-DCC-DL2-S9108-AI-1-1-5"
+    os_image_name: "RHEL 10.0"
+    scu_name: "SCU-7.1.5.250100"
+    config_file_name: "RHEL10.ks"
+    hostname: "server01"
+    ip_address: "198.19.202.101"
+    netmask: "255.255.255.0"
+    gateway: "198.19.202.1"
+    nameserver: "198.19.255.137"
+    alt_nameserver: "198.19.255.137"
+    network_device: "eth1"
+    root_password: "Cisco123!"
+    ip_config_type: "static"
+    ip_version: "IPv4"
 
   tasks:
     # =========================================================
@@ -432,7 +447,7 @@
                     Regex: ""
                     DataSourceSelector: []
                     InventorySelector: []
-              Value: "static"
+              Value: "{{ ip_config_type }}"
             - ObjectType: "os.PlaceHolder"
               ClassId: "os.PlaceHolder"
               IsValueSet: true
@@ -468,7 +483,7 @@
                     Regex: ""
                     DataSourceSelector: []
                     InventorySelector: []
-              Value: "IPv4"
+              Value: "{{ ip_version }}"
             - ObjectType: "os.PlaceHolder"
               ClassId: "os.PlaceHolder"
               IsValueSet: true
@@ -504,7 +519,7 @@
                     Regex: ""
                     DataSourceSelector: []
                     InventorySelector: []
-              Value: "{{ nameserver }}"
+              Value: "{{ alt_nameserver }}"
             - ObjectType: "os.PlaceHolder"
               ClassId: "os.PlaceHolder"
               IsValueSet: false
@@ -625,6 +640,4 @@
           - "Server: {{ server_name }}"
           - "IP Address: {{ ip_address }}"
           - "Hostname: {{ hostname }}"
-          - "============================================"
-          - "NOTE: No InstallTarget - disk handled by kickstart"
           - "============================================"
